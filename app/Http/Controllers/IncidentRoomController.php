@@ -13,8 +13,11 @@ use Illuminate\Support\Facades\Storage;
 
 class IncidentRoomController extends Controller
 {
+    private const DEFAULT_TEST_LOCATION = 'Karol Bagh, Delhi';
+    
     private ReportProcessingPipeline $pipeline;
     private SitrepSynthesizer $synthesizer;
+    private GeocodingService $geocodingService;
 
     public function __construct(
         LingoSdkService $lingo,
@@ -22,6 +25,7 @@ class IncidentRoomController extends Controller
     ) {
         $this->pipeline = new ReportProcessingPipeline($lingo, $geocoding);
         $this->synthesizer = new SitrepSynthesizer($lingo);
+        $this->geocodingService = $geocoding;
     }
 
     /**
@@ -29,12 +33,18 @@ class IncidentRoomController extends Controller
      */
     public function processReports(Request $request): JsonResponse
     {
+        // Increase PHP execution time limit for processing
+        set_time_limit(300); // 5 minutes
+        ini_set('max_execution_time', 300);
+        ini_set('memory_limit', '512M'); // Increase memory limit
+        ignore_user_abort(true); // Continue processing even if user disconnects
+        
         try {
             // Validate input
             $validated = $request->validate([
                 'reports' => 'required|array|min:1|max:10',
-                'reports.*.id' => 'required|string',
                 'reports.*.raw_text' => 'required|string',
+                'reports.*.location' => 'required|string',
                 'reports.*.original_language' => 'nullable|string',
                 'reports.*.source_type' => 'nullable|string',
                 'reports.*.timestamp' => 'nullable|string',
@@ -42,6 +52,33 @@ class IncidentRoomController extends Controller
             ]);
 
             $reports = $validated['reports'];
+
+            // Auto-generate IDs and process locations
+            foreach ($reports as $index => &$report) {
+                // Generate unique ID for each report
+                $report['id'] = 'r' . uniqid() . '_' . $index;
+                
+                // Geocode the location
+                try {
+                    $geocoded = $this->geocodingService->resolve($report['location']);
+                    $report['geocoded_location'] = $geocoded;
+                    Log::info("Geocoded location for report {$report['id']}", [
+                        'location' => $report['location'],
+                        'coordinates' => $geocoded,
+                    ]);
+                } catch (\Exception $e) {
+                    Log::warning("Failed to geocode location for report {$report['id']}", [
+                        'location' => $report['location'],
+                        'error' => $e->getMessage(),
+                    ]);
+                    $report['geocoded_location'] = [
+                        'lat' => null,
+                        'lng' => null,
+                        'confidence' => 0,
+                        'display_name' => $report['location']
+                    ];
+                }
+            }
 
             Log::info('Processing incident reports', [
                 'report_count' => count($reports),
@@ -100,26 +137,32 @@ class IncidentRoomController extends Controller
      */
     public function testWithExampleData(): JsonResponse
     {
+        // Increase PHP execution time limit for processing
+        set_time_limit(300); // 5 minutes
+        ini_set('max_execution_time', 300);
+        ini_set('memory_limit', '512M'); // Increase memory limit
+        ignore_user_abort(true); // Continue processing even if user disconnects
+        
         $exampleReports = [
             [
-                'id' => 'r1',
                 'raw_text' => 'दिल्ली के करोल बाग में एक जोरदार धमाका हुआ, बहुत तेज आवाज़, कई लोगों ने सुना, अभी तक चोट की खबर नहीं मिली',
+                'location' => self::DEFAULT_TEST_LOCATION,
                 'original_language' => 'hi',
                 'source_type' => 'voice-transcript',
                 'timestamp' => '2025-11-15T07:12:00+05:30',
                 'reporter_meta' => ['source' => 'field_call', 'credibility' => 'unknown'],
             ],
             [
-                'id' => 'r2',
                 'raw_text' => 'করোল বাগ এলাকায় বিস্ফোরণ শোনা গেছে, লোকেরা বাইরে হয়েছে, কেউ আহত হয়েছে জানি না',
+                'location' => self::DEFAULT_TEST_LOCATION,
                 'original_language' => 'bn',
                 'source_type' => 'voice-transcript',
                 'timestamp' => '2025-11-15T07:13:27+05:30',
                 'reporter_meta' => ['source' => 'citizen_sms', 'credibility' => 'unknown'],
             ],
             [
-                'id' => 'r3',
                 'raw_text' => 'Loud explosion reported near Karol Bagh, Delhi. Many people heard the blast. No confirmed casualties yet.',
+                'location' => self::DEFAULT_TEST_LOCATION,
                 'original_language' => 'en',
                 'source_type' => 'text',
                 'timestamp' => '2025-11-15T07:11:50+05:30',

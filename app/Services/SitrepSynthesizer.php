@@ -88,7 +88,13 @@ class SitrepSynthesizer
 
     private function synthesizeLocation(array $reports): array
     {
-        $geotagged = array_filter($reports, fn($r) => $r['geotag']['confidence'] > 0.3);
+        // First, try to use geocoded locations from user input
+        $geotagged = array_filter($reports, fn($r) => 
+            isset($r['geotag']) && 
+            $r['geotag']['confidence'] > 0.1 && 
+            $r['geotag']['lat'] !== null && 
+            $r['geotag']['lng'] !== null
+        );
         
         if (empty($geotagged)) {
             return [
@@ -103,7 +109,11 @@ class SitrepSynthesizer
         usort($geotagged, fn($a, $b) => $b['geotag']['confidence'] <=> $a['geotag']['confidence']);
         $bestGeotag = $geotagged[0]['geotag'];
         
+        // Get location name from user input or geotag display_name
         $locationName = $this->getMainLocation($reports);
+        if ($locationName === 'Unknown location' && isset($bestGeotag['display_name'])) {
+            $locationName = $bestGeotag['display_name'];
+        }
         
         return [
             'name' => $locationName,
@@ -354,6 +364,21 @@ class SitrepSynthesizer
 
     private function getMainLocation(array $reports): string
     {
+        // First, try to use the user-provided location field
+        $userLocations = [];
+        foreach ($reports as $report) {
+            if (isset($report['location']) && !empty($report['location'])) {
+                $userLocations[] = $report['location'];
+            }
+        }
+        
+        if (!empty($userLocations)) {
+            $locationCounts = array_count_values($userLocations);
+            arsort($locationCounts);
+            return array_key_first($locationCounts);
+        }
+        
+        // Fallback: use extracted location names from text
         $locations = [];
         foreach ($reports as $report) {
             $locations = array_merge($locations, $report['location_names'] ?? []);

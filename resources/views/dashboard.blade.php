@@ -8,6 +8,19 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <style>
+        /* Ensure map stays below modals */
+        .leaflet-container {
+            z-index: 1 !important;
+        }
+        .leaflet-control-container {
+            z-index: 2 !important;
+        }
+        /* Ensure modal is always on top */
+        .modal-overlay {
+            z-index: 9999 !important;
+        }
+    </style>
 </head>
 <body class="bg-gray-100">
     <div class="min-h-screen">
@@ -99,7 +112,7 @@
                             <!-- Map -->
                             <div>
                                 <h4 class="font-semibold mb-2">Location</h4>
-                                <div id="incident-map" class="h-80 bg-gray-200 rounded-lg"></div>
+                                <div id="incident-map" class="h-80 bg-gray-200 rounded-lg relative z-10"></div>
                                 <div class="mt-2 text-sm text-gray-600">
                                     <span id="coordinates">Coordinates: Loading...</span>
                                     <span class="ml-4">Confidence: <span id="location-confidence">0%</span></span>
@@ -121,15 +134,15 @@
     </div>
 
     <!-- Upload Modal -->
-    <div id="upload-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center">
-        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+    <div id="upload-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-[9999] modal-overlay">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 relative z-[10000]">
             <h3 class="text-lg font-semibold mb-4">Upload Custom Reports</h3>
             <textarea id="custom-reports" class="w-full h-40 border rounded p-3 text-sm" 
                 placeholder='Paste JSON reports here:
 [
   {
-    "id": "r1",
     "raw_text": "Your incident report text...",
+    "location": "City Name or Address",
     "original_language": "en",
     "source_type": "text",
     "timestamp": "2025-11-15T07:12:00+05:30",

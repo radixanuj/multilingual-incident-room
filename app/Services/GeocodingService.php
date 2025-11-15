@@ -14,7 +14,8 @@ class GeocodingService
     public function __construct()
     {
         $this->httpClient = new Client([
-            'timeout' => 10,
+            'timeout' => 120, // 2 minutes timeout
+            'connect_timeout' => 30, // 30 seconds connection timeout
         ]);
 
         // Initialize local database of known locations in India for fallback
@@ -32,45 +33,48 @@ class GeocodingService
         ];
     }
 
-    /**
-     * Resolve location string to latitude/longitude coordinates
-     *
-     * @param string $locationString Location name to geocode
+        /**
+     * Resolve location string to lat/lng coordinates using external geocoding API
+     * @param string $locationString The location to resolve
      * @return array Result with lat, lng, confidence, and source
      */
     public function resolve(string $locationString): array
     {
         $normalizedLocation = $this->normalizeLocationString($locationString);
 
-        // Try local database first for known Indian locations
-        $localResult = $this->searchLocalDatabase($normalizedLocation);
-        if ($localResult['confidence'] >= 0.7) {
-            return $localResult;
-        }
-
-        // Try external geocoding service (Nominatim OpenStreetMap)
+        // ALWAYS try external geocoding service first (real API call)
         try {
             $externalResult = $this->geocodeWithNominatim($normalizedLocation);
-            if ($externalResult['confidence'] >= 0.5) {
+            if ($externalResult['confidence'] >= 0.4) {
+                Log::info("Successfully geocoded via API", [
+                    'location' => $locationString,
+                    'result' => $externalResult
+                ]);
                 return $externalResult;
             }
         } catch (\Exception $e) {
             Log::warning('External geocoding failed: ' . $e->getMessage());
         }
 
-        // Fallback to fuzzy matching in local database
-        $fuzzyResult = $this->fuzzySearchLocal($normalizedLocation);
-        if ($fuzzyResult['confidence'] >= 0.3) {
-            return $fuzzyResult;
+        // Fallback: try local database only if API fails
+        $localResult = $this->searchLocalDatabase($normalizedLocation);
+        if ($localResult['confidence'] >= 0.7) {
+            Log::info("Fallback to local database", [
+                'location' => $locationString,
+                'result' => $localResult
+            ]);
+            return $localResult;
         }
 
-        // Final fallback - return Delhi center with low confidence
+        // Final fallback - return with very low confidence
+        Log::warning("Geocoding completely failed for: " . $locationString);
         return [
-            'lat' => 28.6139,
-            'lng' => 77.2090,
-            'confidence' => 0.1,
-            'source' => 'fallback_delhi_center',
+            'lat' => null,
+            'lng' => null,
+            'confidence' => 0.0,
+            'source' => 'geocoding_failed',
             'query' => $locationString,
+            'display_name' => $locationString,
         ];
     }
 
@@ -129,16 +133,16 @@ class GeocodingService
     }
 
     /**
-     * Use Nominatim OpenStreetMap API for geocoding
+     * Use Nominatim OpenStreetMap API for geocoding (worldwide search)
      */
     private function geocodeWithNominatim(string $location): array
     {
         $url = 'https://nominatim.openstreetmap.org/search';
         $params = [
-            'q' => $location . ', India',
+            'q' => $location, // Search worldwide, no country restriction
             'format' => 'json',
             'limit' => 1,
-            'countrycodes' => 'in',
+            'addressdetails' => 1, // Get detailed address info
         ];
 
         $response = $this->httpClient->get($url, [
@@ -151,11 +155,20 @@ class GeocodingService
         $data = json_decode($response->getBody()->getContents(), true);
 
         if (empty($data)) {
+            Log::warning("No geocoding results found for: " . $location);
             return ['confidence' => 0.0];
         }
 
         $result = $data[0];
         $confidence = $this->calculateNominatimConfidence($result, $location);
+
+        Log::info("Geocoding API success", [
+            'query' => $location,
+            'lat' => $result['lat'],
+            'lng' => $result['lon'],
+            'confidence' => $confidence,
+            'display_name' => $result['display_name']
+        ]);
 
         return [
             'lat' => (float) $result['lat'],
@@ -182,42 +195,6 @@ class GeocodingService
         }
 
         return min($baseConfidence, 1.0);
-    }
-
-    /**
-     * Fuzzy search in local database using Levenshtein distance
-     */
-    private function fuzzySearchLocal(string $location): array
-    {
-        $bestMatch = null;
-        $lowestDistance = PHP_INT_MAX;
-
-        foreach ($this->locationDatabase as $dbLocation => $coords) {
-            $distance = levenshtein($location, $dbLocation);
-            if ($distance < $lowestDistance && $distance <= 3) {
-                $lowestDistance = $distance;
-                $bestMatch = $coords;
-                $bestMatch['matched_location'] = $dbLocation;
-            }
-        }
-
-        if ($bestMatch) {
-            // Calculate confidence based on string similarity
-            $maxLen = max(strlen($location), strlen($bestMatch['matched_location']));
-            $similarity = 1 - ($lowestDistance / $maxLen);
-            $confidence = $similarity * $bestMatch['confidence'] * 0.6; // Reduce for fuzzy match
-
-            return [
-                'lat' => $bestMatch['lat'],
-                'lng' => $bestMatch['lng'],
-                'confidence' => $confidence,
-                'source' => 'local_database_fuzzy',
-                'query' => $location,
-                'matched_location' => $bestMatch['matched_location'],
-            ];
-        }
-
-        return ['confidence' => 0.0];
     }
 
     /**

@@ -179,6 +179,16 @@ class ReportProcessingPipeline
     private function geotagReports(array $reports): array
     {
         foreach ($reports as &$report) {
+            // First, check if we already have geocoded location from the controller
+            if (isset($report['geocoded_location']) && $report['geocoded_location']['confidence'] > 0) {
+                $report['geotag'] = $report['geocoded_location'];
+                Log::info("Using pre-geocoded location for report {$report['id']}", [
+                    'geotag' => $report['geotag']
+                ]);
+                continue;
+            }
+            
+            // Fallback: try to geocode extracted locations from text
             $bestGeotag = null;
             $highestConfidence = 0;
             

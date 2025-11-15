@@ -13,6 +13,8 @@ class LingoSdkService
     {
         $this->engine = new LingoDotDevEngine([
             'apiKey' => config('services.lingo.api_key') ?? env('LINGO_API_KEY'),
+            'timeout' => 120, // 2 minutes timeout
+            'connectTimeout' => 30, // 30 seconds connection timeout
         ]);
     }
 
