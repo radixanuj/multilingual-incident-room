@@ -279,6 +279,7 @@ class SitrepSynthesizer
             'report_count' => count($reports),
             'report_ids' => $reportIds,
             'top_3_sources_summary' => $top3Sources,
+            'reports' => $reports, // Include full reports for media access
         ];
     }
 

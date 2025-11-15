@@ -29,6 +29,190 @@ class IncidentRoomController extends Controller
     }
 
     /**
+     * Submit incident form with file uploads
+     */
+    public function submitForm(Request $request): JsonResponse
+    {
+        // Increase PHP execution time limit for processing
+        set_time_limit(300); // 5 minutes
+        ini_set('max_execution_time', 300);
+        ini_set('memory_limit', '512M');
+        ignore_user_abort(true);
+        
+        try {
+            // Validate input
+            $validated = $request->validate([
+                'raw_text' => 'required|string|max:10000',
+                'location' => 'required|string|max:500',
+                'original_language' => 'nullable|string',
+                'source_type' => 'nullable|string',
+                'source_credibility' => 'nullable|string',
+                'timestamp' => 'nullable|string',
+                'images.*' => 'nullable|file|image|max:10240', // 10MB max per image
+                'videos.*' => 'nullable|file|mimes:mp4,mov,avi,mkv|max:51200', // 50MB max per video
+            ]);
+
+            // Handle file uploads
+            $uploadedFiles = $this->handleFileUploads($request);
+
+            // Build the report object
+            $report = [
+                'raw_text' => $validated['raw_text'],
+                'location' => $validated['location'],
+                'original_language' => $validated['original_language'] ?? 'auto',
+                'source_type' => $validated['source_type'] ?? 'text',
+                'timestamp' => $validated['timestamp'] ?? now()->toISOString(),
+                'reporter_meta' => [
+                    'source' => $validated['source_type'] ?? 'form_submission',
+                    'credibility' => $validated['source_credibility'] ?? 'medium'
+                ]
+            ];
+
+            // Add media information to the report
+            if (!empty($uploadedFiles['images']) || !empty($uploadedFiles['videos'])) {
+                $report['media_attachments'] = $uploadedFiles;
+                
+                // Append media info to text for processing
+                if (!empty($uploadedFiles['images'])) {
+                    $imageNames = array_column($uploadedFiles['images'], 'original_name');
+                    $report['raw_text'] .= "\n\n📷 Attached Images: " . implode(', ', $imageNames);
+                }
+                if (!empty($uploadedFiles['videos'])) {
+                    $videoNames = array_column($uploadedFiles['videos'], 'original_name');
+                    $report['raw_text'] .= "\n\n🎥 Attached Videos: " . implode(', ', $videoNames);
+                }
+            }
+
+            // Generate unique ID for the report
+            $report['id'] = 'form_' . uniqid() . '_0';
+
+            // Geocode the location
+            try {
+                $geocoded = $this->geocodingService->resolve($report['location']);
+                $report['geocoded_location'] = $geocoded;
+                Log::info("Geocoded location for form report {$report['id']}", [
+                    'location' => $report['location'],
+                    'coordinates' => $geocoded,
+                ]);
+            } catch (\Exception $e) {
+                Log::warning("Failed to geocode location for form report {$report['id']}", [
+                    'location' => $report['location'],
+                    'error' => $e->getMessage(),
+                ]);
+                $report['geocoded_location'] = [
+                    'lat' => null,
+                    'lng' => null,
+                    'confidence' => 0,
+                    'display_name' => $report['location']
+                ];
+            }
+
+            Log::info('Processing form-based incident report', [
+                'report_id' => $report['id'],
+                'has_media' => !empty($report['media_attachments']),
+                'images_count' => count($uploadedFiles['images'] ?? []),
+                'videos_count' => count($uploadedFiles['videos'] ?? []),
+            ]);
+
+            // Process the report through the pipeline
+            $clusters = $this->pipeline->processReports([$report]);
+
+            if (empty($clusters)) {
+                return response()->json([
+                    'error' => 'Could not process the incident report',
+                    'message' => 'Report may lack sufficient information or confidence scores',
+                ], 422);
+            }
+
+            // Process the cluster and generate SITREP
+            $primaryCluster = $this->selectPrimaryCluster($clusters);
+            $sitrep = $this->synthesizer->synthesize($primaryCluster);
+
+            // Apply quality checks
+            $validatedSitrep = $this->applyQualityChecks($sitrep);
+
+            // Save SITREP to file
+            $this->saveSitrepToFile($validatedSitrep);
+
+            Log::info('Form-based SITREP generated successfully', [
+                'incident_id' => $validatedSitrep['incident_id'],
+                'status' => $validatedSitrep['status'],
+                'has_media' => isset($report['media_attachments']),
+            ]);
+
+            return response()->json($validatedSitrep, 200);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => 'Validation failed',
+                'details' => $e->errors(),
+            ], 422);
+
+        } catch (\Exception $e) {
+            Log::error('Error processing form submission', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'Internal processing error',
+                'message' => 'Failed to process incident form',
+            ], 500);
+        }
+    }
+
+    /**
+     * Handle file uploads and store them
+     */
+    private function handleFileUploads(Request $request): array
+    {
+        $uploadedFiles = [
+            'images' => [],
+            'videos' => []
+        ];
+
+        // Handle image uploads
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $file) {
+                if ($file->isValid()) {
+                    $filename = 'incident_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                    $path = $file->storeAs('incidents/images', $filename, 'public');
+                    
+                    $uploadedFiles['images'][] = [
+                        'original_name' => $file->getClientOriginalName(),
+                        'stored_name' => $filename,
+                        'path' => $path,
+                        'url' => asset('storage/' . $path),
+                        'size' => $file->getSize(),
+                        'mime_type' => $file->getMimeType(),
+                    ];
+                }
+            }
+        }
+
+        // Handle video uploads
+        if ($request->hasFile('videos')) {
+            foreach ($request->file('videos') as $file) {
+                if ($file->isValid()) {
+                    $filename = 'incident_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                    $path = $file->storeAs('incidents/videos', $filename, 'public');
+                    
+                    $uploadedFiles['videos'][] = [
+                        'original_name' => $file->getClientOriginalName(),
+                        'stored_name' => $filename,
+                        'path' => $path,
+                        'url' => asset('storage/' . $path),
+                        'size' => $file->getSize(),
+                        'mime_type' => $file->getMimeType(),
+                    ];
+                }
+            }
+        }
+
+        return $uploadedFiles;
+    }
+
+    /**
      * Process incident reports and generate SITREP
      */
     public function processReports(Request $request): JsonResponse
@@ -184,14 +368,14 @@ class IncidentRoomController extends Controller
         try {
             $filename = "sitreps/{$incidentId}.json";
             
-            if (!Storage::exists($filename)) {
+            if (!Storage::disk('local')->exists($filename)) {
                 return response()->json([
                     'error' => 'SITREP not found',
                     'incident_id' => $incidentId,
                 ], 404);
             }
 
-            $sitrepData = json_decode(Storage::get($filename), true);
+            $sitrepData = json_decode(Storage::disk('local')->get($filename), true);
 
             return response()->json($sitrepData, 200);
 
@@ -213,24 +397,40 @@ class IncidentRoomController extends Controller
     public function listSitreps(): JsonResponse
     {
         try {
-            $files = Storage::files('sitreps');
+            $files = Storage::disk('local')->files('sitreps');
             $sitreps = [];
 
             foreach ($files as $file) {
                 if (pathinfo($file, PATHINFO_EXTENSION) === 'json') {
-                    $content = json_decode(Storage::get($file), true);
-                    $sitreps[] = [
-                        'incident_id' => $content['incident_id'],
-                        'title' => $content['canonical_title'],
-                        'status' => $content['status'],
-                        'timestamp' => $content['audit']['created_at'],
-                        'location' => $content['location']['name'],
-                    ];
+                    try {
+                        $content = json_decode(Storage::disk('local')->get($file), true);
+                        if ($content && isset($content['incident_id'])) {
+                            $sitreps[] = [
+                                'incident_id' => $content['incident_id'],
+                                'title' => $content['canonical_title'] ?? 'Untitled Incident',
+                                'status' => $content['status'] ?? 'unknown',
+                                'timestamp' => $content['audit']['created_at'] ?? $content['time_window']['first_report'] ?? now()->toISOString(),
+                                'location' => $content['location']['name'] ?? 'Unknown Location',
+                            ];
+                        }
+                    } catch (\Exception $fileError) {
+                        Log::warning("Error reading SITREP file: {$file}", [
+                            'error' => $fileError->getMessage()
+                        ]);
+                        continue;
+                    }
                 }
             }
 
             // Sort by timestamp descending
-            usort($sitreps, fn($a, $b) => $b['timestamp'] <=> $a['timestamp']);
+            usort($sitreps, function($a, $b) {
+                return strtotime($b['timestamp']) <=> strtotime($a['timestamp']);
+            });
+
+            Log::info('Listed SITREPs', [
+                'count' => count($sitreps),
+                'files_found' => count($files)
+            ]);
 
             return response()->json([
                 'sitreps' => $sitreps,
@@ -240,10 +440,12 @@ class IncidentRoomController extends Controller
         } catch (\Exception $e) {
             Log::error('Error listing SITREPs', [
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'error' => 'Failed to list SITREPs',
+                'debug' => $e->getMessage(),
             ], 500);
         }
     }
@@ -308,10 +510,15 @@ class IncidentRoomController extends Controller
     private function saveSitrepToFile(array $sitrep): void
     {
         $filename = "sitreps/{$sitrep['incident_id']}.json";
-        Storage::put($filename, json_encode($sitrep, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        Storage::disk('local')->put($filename, json_encode($sitrep, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
         
         // Also save as the main sitrep.json for dashboard
-        Storage::put('sitrep.json', json_encode($sitrep, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        Storage::disk('local')->put('sitrep.json', json_encode($sitrep, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        
+        Log::info('SITREP saved to file', [
+            'incident_id' => $sitrep['incident_id'],
+            'filename' => $filename
+        ]);
     }
 
     /**
