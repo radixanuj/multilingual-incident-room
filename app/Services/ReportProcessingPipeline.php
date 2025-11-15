@@ -328,10 +328,13 @@ class ReportProcessingPipeline
 
         // Common Indian location patterns
         $locationPatterns = [
-            '/\b([A-Z][a-z]+\s+[Bb]agh)\b/',  // Karol Bagh, etc.
-            '/\b([A-Z][a-z]+\s+[Nn]agar)\b/', // Areas with Nagar
-            '/\b([A-Z][a-z]+\s+[Pp]lace)\b/', // Connaught Place, etc.
-            '/\b(Delhi|Mumbai|Kolkata|Chennai|Bangalore|Hyderabad)\b/i',
+            '/\b([A-Z][a-z]+\s+[Bb]agh)\b/',     // Areas ending in "bagh"
+            '/\b([A-Z][a-z]+\s+[Nn]agar)\b/',    // Areas ending in "nagar"  
+            '/\b([A-Z][a-z]+\s+[Pp]lace)\b/',    // Areas ending in "place"
+            '/\b([A-Z][a-z]+\s+[Ss]tation)\b/',  // Railway/metro stations
+            '/\b([A-Z][a-z]+\s+[Cc]enter)\b/',   // City centers
+            '/\b([A-Z][a-z]+\s+[Cc]entre)\b/',   // City centres (British spelling)
+            '/\b([A-Z][A-Z]+)\b/',               // All-caps locations (abbreviations)
         ];
 
         foreach ($locationPatterns as $pattern) {

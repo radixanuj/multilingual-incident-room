@@ -315,38 +315,16 @@ class IncidentRoomController extends Controller
     }
 
     /**
-     * Fallback translation using basic mappings
+     * Fallback translation - just return original text since Lingo SDK should handle all translations
      */
     private function translateFallback(string $text, string $targetLocale): string
     {
-        // Simple fallback translations for common phrases
-        $fallbackTranslations = [
-            'hi' => [
-                'explosion' => 'धमाका',
-                'incident' => 'घटना',
-                'reported' => 'रिपोर्ट किया गया',
-                'casualties' => 'हताहत',
-                'No casualties' => 'कोई हताहत नहीं',
-            ],
-            'bn' => [
-                'explosion' => 'বিস্ফোরণ',
-                'incident' => 'ঘটনা',
-                'reported' => 'রিপোর্ট করা হয়েছে',
-                'casualties' => 'হতাহত',
-                'No casualties' => 'কোন হতাহত নেই',
-            ],
-        ];
-
-        $translated = $text;
-        if (isset($fallbackTranslations[$targetLocale])) {
-            foreach ($fallbackTranslations[$targetLocale] as $en => $local) {
-                $translated = str_ireplace($en, $local, $translated);
-            }
-        }
-
-        return $translated;
+        // No static translations - rely on Lingo SDK for all translation work
+        Log::warning("Translation fallback triggered - Lingo SDK should handle this", [
+            'text' => $text,
+            'target_locale' => $targetLocale
+        ]);
+        
+        return $text; // Return original text if Lingo fails
     }
-}
-
-
-// name, location, type, comment, timestamp, 
+} 

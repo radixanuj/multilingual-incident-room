@@ -17,20 +17,9 @@ class GeocodingService
             'timeout' => 120, // 2 minutes timeout
             'connect_timeout' => 30, // 30 seconds connection timeout
         ]);
-
-        // Initialize local database of known locations in India for fallback
-        $this->locationDatabase = [
-            'karol bagh' => ['lat' => 28.6531, 'lng' => 77.1900, 'confidence' => 0.95],
-            'delhi' => ['lat' => 28.6139, 'lng' => 77.2090, 'confidence' => 0.90],
-            'new delhi' => ['lat' => 28.6139, 'lng' => 77.2090, 'confidence' => 0.90],
-            'connaught place' => ['lat' => 28.6315, 'lng' => 77.2167, 'confidence' => 0.85],
-            'india gate' => ['lat' => 28.6129, 'lng' => 77.2295, 'confidence' => 0.85],
-            'mumbai' => ['lat' => 19.0760, 'lng' => 72.8777, 'confidence' => 0.90],
-            'kolkata' => ['lat' => 22.5726, 'lng' => 88.3639, 'confidence' => 0.90],
-            'bengaluru' => ['lat' => 12.9716, 'lng' => 77.5946, 'confidence' => 0.90],
-            'bangalore' => ['lat' => 12.9716, 'lng' => 77.5946, 'confidence' => 0.90],
-            'chennai' => ['lat' => 13.0827, 'lng' => 80.2707, 'confidence' => 0.90],
-        ];
+        
+        // No static location database - use real geocoding API for everything
+        $this->locationDatabase = [];
     }
 
         /**
@@ -42,7 +31,7 @@ class GeocodingService
     {
         $normalizedLocation = $this->normalizeLocationString($locationString);
 
-        // ALWAYS try external geocoding service first (real API call)
+        // ALWAYS use external geocoding service (real API call only)
         try {
             $externalResult = $this->geocodeWithNominatim($normalizedLocation);
             if ($externalResult['confidence'] >= 0.4) {
@@ -54,16 +43,6 @@ class GeocodingService
             }
         } catch (\Exception $e) {
             Log::warning('External geocoding failed: ' . $e->getMessage());
-        }
-
-        // Fallback: try local database only if API fails
-        $localResult = $this->searchLocalDatabase($normalizedLocation);
-        if ($localResult['confidence'] >= 0.7) {
-            Log::info("Fallback to local database", [
-                'location' => $locationString,
-                'result' => $localResult
-            ]);
-            return $localResult;
         }
 
         // Final fallback - return with very low confidence
@@ -99,37 +78,6 @@ class GeocodingService
         ];
         
         return $variations[$normalized] ?? $normalized;
-    }
-
-    /**
-     * Search in local database for exact or partial matches
-     */
-    private function searchLocalDatabase(string $location): array
-    {
-        // Exact match
-        if (isset($this->locationDatabase[$location])) {
-            $result = $this->locationDatabase[$location];
-            return array_merge($result, [
-                'source' => 'local_database_exact',
-                'query' => $location,
-            ]);
-        }
-
-        // Partial match
-        foreach ($this->locationDatabase as $dbLocation => $coords) {
-            if (str_contains($dbLocation, $location) || str_contains($location, $dbLocation)) {
-                $confidence = $coords['confidence'] * 0.8; // Reduce confidence for partial match
-                return [
-                    'lat' => $coords['lat'],
-                    'lng' => $coords['lng'],
-                    'confidence' => $confidence,
-                    'source' => 'local_database_partial',
-                    'query' => $location,
-                ];
-            }
-        }
-
-        return ['confidence' => 0.0];
     }
 
     /**
@@ -199,27 +147,13 @@ class GeocodingService
 
     /**
      * Get area boundaries for broad location queries
+     * Note: This could be enhanced with dynamic API calls to get real bounds
      */
     public function getAreaBounds(string $location): array
     {
-        $normalized = $this->normalizeLocationString($location);
-        
-        // Define bounds for major areas
-        $areaBounds = [
-            'delhi' => [
-                'north' => 28.88,
-                'south' => 28.40,
-                'east' => 77.35,
-                'west' => 76.84,
-            ],
-            'mumbai' => [
-                'north' => 19.30,
-                'south' => 18.89,
-                'east' => 72.98,
-                'west' => 72.77,
-            ],
-        ];
-
-        return $areaBounds[$normalized] ?? [];
+        // Return empty array - no static bounds defined
+        // This method exists for interface compatibility but should use dynamic data
+        Log::info("Area bounds requested for: " . $location);
+        return [];
     }
 }
