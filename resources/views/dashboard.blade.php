@@ -3,88 +3,369 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multilingual Incident Room - SITREP Dashboard</title>
+    <title>Incident Command Center - SITREP Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <style>
-        /* Ensure map stays below modals */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+        }
+        
+        .font-display {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+        
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        /* Dark gradient backgrounds */
+        .hero-gradient {
+            background: radial-gradient(ellipse at top, rgba(239, 68, 68, 0.15) 0%, transparent 50%),
+                        radial-gradient(ellipse at bottom right, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
+                        #0a0a0a;
+        }
+        
+        .gradient-dark {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.6) 100%);
+            backdrop-filter: blur(20px);
+        }
+        
+        /* Glassmorphism cards */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .glass-card:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(239, 68, 68, 0.3);
+            transform: translateY(-3px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+        
+        /* Neon glow effects */
+        .glow-red {
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.4),
+                        0 0 40px rgba(239, 68, 68, 0.2);
+        }
+        
+        .glow-blue {
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.3),
+                        0 0 40px rgba(59, 130, 246, 0.15);
+        }
+        
+        .glow-green {
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.3),
+                        0 0 40px rgba(34, 197, 94, 0.15);
+        }
+        
+        .glow-purple {
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.3),
+                        0 0 40px rgba(168, 85, 247, 0.15);
+        }
+        
+        .glow-orange {
+            box-shadow: 0 0 30px rgba(251, 146, 60, 0.5),
+                        0 0 60px rgba(251, 146, 60, 0.25);
+        }
+        
+        /* Button animations */
+        .btn-primary {
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        
+        .btn-primary:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 40px rgba(239, 68, 68, 0.5),
+                        0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+        
+        /* Input fields dark theme */
+        .input-dark {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            transition: all 0.3s ease;
+        }
+        
+        .input-dark:focus {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(239, 68, 68, 0.5);
+            outline: none;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);
+        }
+        
+        .input-dark::placeholder {
+            color: rgba(255, 255, 255, 0.3);
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #0a0a0a;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #ef4444 0%, #fb923c 100%);
+            border-radius: 5px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, #dc2626 0%, #f97316 100%);
+        }
+        
+        /* Map container dark theme */
         .leaflet-container {
             z-index: 1 !important;
+            background: #1a1a1a !important;
+            border-radius: 12px;
         }
+        
         .leaflet-control-container {
             z-index: 2 !important;
         }
-        /* Ensure modal is always on top */
+        
         .modal-overlay {
             z-index: 9999 !important;
         }
+        
+        /* Animations */
+        @keyframes pulse-subtle {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .status-verified {
+            animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        /* Status badges with neon accents */
+        .status-badge-verified {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #4ade80;
+            box-shadow: 0 0 15px rgba(34, 197, 94, 0.2);
+        }
+        
+        .status-badge-probable {
+            background: rgba(251, 146, 60, 0.1);
+            border: 1px solid rgba(251, 146, 60, 0.3);
+            color: #fb923c;
+            box-shadow: 0 0 15px rgba(251, 146, 60, 0.2);
+        }
+        
+        .status-badge-unverified {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #f87171;
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.2);
+        }
+        
+        /* Grid background */
+        .grid-background {
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 50px 50px;
+        }
+        
+        /* Gradient text */
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 0%, #ef4444 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        /* Upload zones */
+        .upload-zone {
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.02);
+            transition: all 0.3s ease;
+        }
+        
+        .upload-zone:hover {
+            border-color: rgba(239, 68, 68, 0.4);
+            background: rgba(239, 68, 68, 0.05);
+        }
+        
+        /* Select dropdowns dark theme */
+        select.input-dark option {
+            background: #1a1a1a;
+            color: #ffffff;
+        }
+        
+        /* Link styles */
+        a {
+            color: #60a5fa;
+            transition: color 0.2s ease;
+        }
+        
+        a:hover {
+            color: #93c5fd;
+        }
     </style>
 </head>
-<body class="bg-gray-100">
+<body class="hero-gradient grid-background">
     <div class="min-h-screen">
         <!-- Header -->
-        <header class="bg-red-600 text-white shadow-lg">
-            <div class="container mx-auto px-4 py-6">
+        <header class="gradient-dark border-b border-white/10 sticky top-0 z-50">
+            <div class="container mx-auto px-6 py-6">
                 <div class="flex justify-between items-center">
-                    <h1 class="text-3xl font-bold">🚨 Multilingual Incident Room</h1>
-                    <div class="text-sm">
-                        <span id="current-time"></span>
+                    <div class="flex items-center space-x-4">
+                        <div class="bg-red-600/20 p-3 rounded-lg border border-red-500/30 glow-red">
+                            <i class="fas fa-shield-halved text-red-400 text-2xl"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-3xl font-bold font-display tracking-tight">Incident Command Center</h1>
+                            <p class="text-gray-400 text-sm mt-1">Multilingual Real-time SITREP Generation</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-6">
+                        <div class="text-right">
+                            <div class="text-xs text-gray-500 uppercase tracking-wider font-medium">System Time</div>
+                            <div id="current-time" class="text-sm font-mono text-gray-300 mt-1"></div>
+                        </div>
+                        <div class="h-8 w-px bg-white/20"></div>
+                        <div class="flex items-center space-x-2">
+                            <div class="h-2 w-2 bg-green-400 rounded-full pulse-slow"></div>
+                            <span class="text-xs text-gray-300 font-medium">SYSTEM ONLINE</span>
+                        </div>
+                        <a href="/" class="text-gray-400 hover:text-white transition-colors">
+                            <i class="fas fa-home"></i>
+                        </a>
                     </div>
                 </div>
-                <p class="text-red-100 mt-2">Real-time incident processing and SITREP generation</p>
             </div>
         </header>
 
         <!-- Main Content -->
-        <div class="container mx-auto px-4 py-8">
+        <div class="container mx-auto px-6 py-8">
             <!-- Report Submission Section -->
-            <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-                <h2 class="text-2xl font-semibold text-gray-800 mb-4">📝 Submit Incident Report</h2>
-                <div class="flex gap-4 mb-6">
-                    <button id="test-example" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg">
-                        Process Example Reports
+            <div class="glass-card p-8 mb-8 fade-in">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center space-x-3">
+                        <div class="bg-blue-600/20 p-2.5 rounded-lg border border-blue-500/30 glow-blue">
+                            <i class="fas fa-file-circle-plus text-blue-400 text-xl"></i>
+                        </div>
+                        <h2 class="text-2xl font-semibold font-display">Submit Incident Report</h2>
+                    </div>
+                </div>
+                
+                <div class="flex gap-3 mb-6 flex-wrap">
+                    <button id="test-example" class="btn-primary flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium py-3 px-6 rounded-lg glow-blue">
+                        <i class="fas fa-flask text-sm"></i>
+                        <span>Process Example Reports</span>
                     </button>
-                    <button id="show-form" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-lg">
-                        Fill Report Form
+                    <button id="show-form" class="btn-primary flex items-center space-x-2 bg-gradient-to-r from-green-600 to-green-700 text-white font-medium py-3 px-6 rounded-lg glow-green">
+                        <i class="fas fa-pen-to-square text-sm"></i>
+                        <span>Fill Report Form</span>
                     </button>
-                    <button id="upload-json" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-6 rounded-lg">
-                        Upload JSON (Advanced)
+                    <button id="upload-json" class="btn-primary flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-medium py-3 px-6 rounded-lg glow-purple">
+                        <i class="fas fa-code text-sm"></i>
+                        <span>Upload JSON (Advanced)</span>
                     </button>
                 </div>
 
                 <!-- Report Form -->
-                <div id="report-form" class="hidden">
+                <div id="report-form" class="hidden fade-in">
                     <form id="incident-form" class="space-y-6">
-                        <div class="grid md:grid-cols-2 gap-6">
+                        <div class="grid md:grid-cols-2 gap-8">
                             <!-- Left Column -->
-                            <div class="space-y-4">
+                            <div class="space-y-5">
                                 <div>
-                                    <label for="incident-text" class="block text-sm font-medium text-gray-700 mb-2">
-                                        Incident Description <span class="text-red-500">*</span>
+                                    <label for="incident-text" class="flex items-center space-x-2 text-sm font-medium text-gray-300 mb-3">
+                                        <i class="fas fa-align-left text-gray-500 text-xs"></i>
+                                        <span>Incident Description <span class="text-red-400">*</span></span>
                                     </label>
-                                    <textarea id="incident-text" name="raw_text" rows="4" required
-                                        class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                        placeholder="Describe what happened in detail..."></textarea>
+                                    <textarea id="incident-text" name="raw_text" rows="5" required
+                                        class="w-full input-dark rounded-lg px-4 py-3.5"
+                                        placeholder="Provide detailed description of the incident..."></textarea>
                                 </div>
 
                                 <div>
-                                    <label for="incident-location" class="block text-sm font-medium text-gray-700 mb-2">
-                                        Location <span class="text-red-500">*</span>
+                                    <label for="incident-location" class="flex items-center space-x-2 text-sm font-medium text-gray-300 mb-3">
+                                        <i class="fas fa-location-dot text-gray-500 text-xs"></i>
+                                        <span>Location <span class="text-red-400">*</span></span>
                                     </label>
                                     <input type="text" id="incident-location" name="location" required
-                                        class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                        placeholder="e.g., Karol Bagh, Delhi or street address">
+                                        class="w-full input-dark rounded-lg px-4 py-3.5"
+                                        placeholder="e.g., Karol Bagh, Delhi or specific address">
                                 </div>
 
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label for="original-language" class="block text-sm font-medium text-gray-700 mb-2">
-                                            Language
+                                        <label for="original-language" class="flex items-center space-x-2 text-sm font-medium text-gray-300 mb-3">
+                                            <i class="fas fa-language text-gray-500 text-xs"></i>
+                                            <span>Language</span>
                                         </label>
                                         <select id="original-language" name="original_language"
-                                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                            class="w-full input-dark rounded-lg px-4 py-3.5">
                                             <option value="auto">Auto-detect</option>
                                             <option value="en">English</option>
                                             <option value="hi">Hindi (हिंदी)</option>
@@ -96,11 +377,12 @@
                                     </div>
 
                                     <div>
-                                        <label for="source-type" class="block text-sm font-medium text-gray-700 mb-2">
-                                            Source Type
+                                        <label for="source-type" class="flex items-center space-x-2 text-sm font-medium text-gray-300 mb-3">
+                                            <i class="fas fa-podcast text-gray-500 text-xs"></i>
+                                            <span>Source Type</span>
                                         </label>
                                         <select id="source-type" name="source_type"
-                                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                            class="w-full input-dark rounded-lg px-4 py-3.5">
                                             <option value="text">Text Report</option>
                                             <option value="voice-transcript">Voice Transcript</option>
                                             <option value="social_media">Social Media</option>
@@ -112,11 +394,12 @@
 
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label for="source-credibility" class="block text-sm font-medium text-gray-700 mb-2">
-                                            Source Credibility
+                                        <label for="source-credibility" class="flex items-center space-x-2 text-sm font-medium text-gray-300 mb-3">
+                                            <i class="fas fa-shield-check text-gray-500 text-xs"></i>
+                                            <span>Source Credibility</span>
                                         </label>
                                         <select id="source-credibility" name="source_credibility"
-                                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                            class="w-full input-dark rounded-lg px-4 py-3.5">
                                             <option value="unknown">Unknown</option>
                                             <option value="low">Low</option>
                                             <option value="medium">Medium</option>
@@ -127,88 +410,100 @@
                                     </div>
 
                                     <div>
-                                        <label for="incident-time" class="block text-sm font-medium text-gray-700 mb-2">
-                                            When did this happen?
+                                        <label for="incident-time" class="flex items-center space-x-2 text-sm font-medium text-gray-300 mb-3">
+                                            <i class="fas fa-clock text-gray-500 text-xs"></i>
+                                            <span>Incident Time</span>
                                         </label>
                                         <input type="datetime-local" id="incident-time" name="timestamp"
-                                            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                            class="w-full input-dark rounded-lg px-4 py-3.5">
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Right Column -->
-                            <div class="space-y-4">
+                            <div class="space-y-5">
                                 <div>
-                                    <label for="image-upload-input" class="block text-sm font-medium text-gray-700 mb-2">
-                                        Upload Images (Optional)
+                                    <label for="image-upload-input" class="flex items-center space-x-2 text-sm font-medium text-gray-300 mb-3">
+                                        <i class="fas fa-images text-gray-500 text-xs"></i>
+                                        <span>Upload Images (Optional)</span>
                                     </label>
-                                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                                    <div class="upload-zone rounded-lg p-8 text-center cursor-pointer">
                                         <input type="file" id="image-upload-input" multiple accept="image/*" class="hidden">
-                                        <div id="image-drop-zone" class="cursor-pointer">
-                                            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                                                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                            </svg>
-                                            <p class="mt-2 text-sm text-gray-600">
-                                                <span class="font-medium text-blue-600 hover:text-blue-500">Click to upload</span> or drag and drop
+                                        <div id="image-drop-zone">
+                                            <i class="fas fa-cloud-arrow-up text-4xl text-gray-600 mb-3"></i>
+                                            <p class="text-sm text-gray-400">
+                                                <span class="font-medium text-blue-400">Click to upload</span> or drag and drop
                                             </p>
-                                            <p class="text-xs text-gray-500">PNG, JPG, GIF up to 10MB each</p>
+                                            <p class="text-xs text-gray-500 mt-1">PNG, JPG, GIF up to 10MB each</p>
                                         </div>
                                     </div>
-                                    <div id="image-previews" class="mt-3 grid grid-cols-3 gap-3"></div>
+                                    <div id="image-previews" class="mt-4 grid grid-cols-3 gap-3"></div>
                                 </div>
 
                                 <div>
-                                    <label for="video-upload-input" class="block text-sm font-medium text-gray-700 mb-2">
-                                        Upload Videos (Optional)
+                                    <label for="video-upload-input" class="flex items-center space-x-2 text-sm font-medium text-gray-300 mb-3">
+                                        <i class="fas fa-video text-gray-500 text-xs"></i>
+                                        <span>Upload Videos (Optional)</span>
                                     </label>
-                                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                                    <div class="upload-zone rounded-lg p-8 text-center cursor-pointer">
                                         <input type="file" id="video-upload-input" multiple accept="video/*" class="hidden">
-                                        <div id="video-drop-zone" class="cursor-pointer">
-                                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                                            </svg>
-                                            <p class="mt-2 text-sm text-gray-600">
-                                                <span class="font-medium text-blue-600 hover:text-blue-500">Click to upload</span> or drag and drop
+                                        <div id="video-drop-zone">
+                                            <i class="fas fa-film text-4xl text-gray-600 mb-3"></i>
+                                            <p class="text-sm text-gray-400">
+                                                <span class="font-medium text-purple-400">Click to upload</span> or drag and drop
                                             </p>
-                                            <p class="text-xs text-gray-500">MP4, MOV, AVI up to 50MB each</p>
+                                            <p class="text-xs text-gray-500 mt-1">MP4, MOV, AVI up to 50MB each</p>
                                         </div>
                                     </div>
-                                    <div id="video-previews" class="mt-3 space-y-2"></div>
+                                    <div id="video-previews" class="mt-4 space-y-2"></div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="flex justify-end gap-4 pt-6 border-t">
-                            <button type="button" id="cancel-form" class="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                                Cancel
+                        <div class="flex justify-end gap-3 pt-6 border-t border-white/10">
+                            <button type="button" id="cancel-form" class="flex items-center space-x-2 px-6 py-3 border border-white/20 rounded-lg text-gray-300 hover:bg-white/5 transition-all">
+                                <i class="fas fa-xmark text-sm"></i>
+                                <span>Cancel</span>
                             </button>
-                            <button type="submit" class="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
-                                Submit Report
+                            <button type="submit" class="btn-primary flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg glow-green">
+                                <i class="fas fa-paper-plane text-sm"></i>
+                                <span>Submit Report</span>
                             </button>
                         </div>
                     </form>
                 </div>
 
-                <div id="processing-status" class="mt-4 hidden">
-                    <div class="flex items-center text-blue-600">
-                        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <div id="processing-status" class="mt-6 hidden">
+                    <div class="flex items-center justify-center space-x-3 bg-blue-600/10 border border-blue-500/30 rounded-lg p-4 text-blue-400 glow-blue">
+                        <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
-                        Processing report through multilingual pipeline...
+                        <span class="font-medium">Processing report through multilingual pipeline...</span>
                     </div>
                 </div>
             </div>
 
             <!-- Current SITREP Display -->
-            <div id="sitrep-container" class="hidden">
-                <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-2xl font-semibold text-gray-800">📊 Current SITREP</h2>
+            <div id="sitrep-container" class="hidden fade-in">
+                <div class="glass-card p-8 mb-8">
+                    <div class="flex justify-between items-center mb-8 pb-6 border-b border-white/10">
+                        <div class="flex items-center space-x-3">
+                            <div class="bg-emerald-600/20 p-2.5 rounded-lg border border-emerald-500/30 glow-green">
+                                <i class="fas fa-chart-line text-emerald-400 text-xl"></i>
+                            </div>
+                            <h2 class="text-2xl font-semibold font-display">Current SITREP</h2>
+                        </div>
                         <div class="flex gap-2">
-                            <button id="lang-en" class="lang-btn bg-blue-600 text-white px-3 py-1 rounded" data-lang="en">English</button>
-                            <button id="lang-hi" class="lang-btn bg-gray-300 text-gray-700 px-3 py-1 rounded" data-lang="hi">हिंदी</button>
-                            <button id="lang-bn" class="lang-btn bg-gray-300 text-gray-700 px-3 py-1 rounded" data-lang="bn">বাংলা</button>
+                            <button id="lang-en" class="lang-btn px-4 py-2.5 rounded-lg font-medium text-sm transition-all bg-red-600/80 text-white glow-red" data-lang="en">
+                                <i class="fas fa-flag-usa mr-1.5"></i>English
+                            </button>
+                            <button id="lang-hi" class="lang-btn px-4 py-2.5 rounded-lg font-medium text-sm transition-all bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10" data-lang="hi">
+                                <i class="fas fa-flag mr-1.5"></i>हिंदी
+                            </button>
+                            <button id="lang-bn" class="lang-btn px-4 py-2.5 rounded-lg font-medium text-sm transition-all bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10" data-lang="bn">
+                                <i class="fas fa-flag mr-1.5"></i>বাংলা
+                            </button>
                         </div>
                     </div>
 
@@ -216,47 +511,86 @@
                     <div id="sitrep-content">
                         <div class="grid md:grid-cols-2 gap-8">
                             <!-- Main Info -->
-                            <div>
-                                <div class="mb-6">
-                                    <h3 class="text-xl font-semibold mb-2" id="incident-title">Loading...</h3>
-                                    <div class="flex items-center gap-4 text-sm text-gray-600">
-                                        <span id="incident-status" class="px-2 py-1 rounded-full bg-gray-100">Status</span>
-                                        <span id="incident-event-time">Time</span>
-                                        <span id="incident-display-location">Location</span>
+                            <div class="space-y-6">
+                                <div class="bg-white/5 border border-white/10 rounded-lg p-6 backdrop-blur-sm">
+                                    <h3 class="text-xl font-semibold mb-3" id="incident-title">Loading...</h3>
+                                    <div class="flex flex-wrap items-center gap-3 text-sm">
+                                        <span id="incident-status" class="px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-gray-300 font-medium flex items-center space-x-1.5">
+                                            <i class="fas fa-circle-info text-xs"></i>
+                                            <span>Status</span>
+                                        </span>
+                                        <span id="incident-event-time" class="flex items-center space-x-1.5 text-gray-400">
+                                            <i class="fas fa-clock text-gray-500"></i>
+                                            <span>Time</span>
+                                        </span>
+                                        <span id="incident-display-location" class="flex items-center space-x-1.5 text-gray-400">
+                                            <i class="fas fa-location-dot text-gray-500"></i>
+                                            <span>Location</span>
+                                        </span>
                                     </div>
                                 </div>
 
-                                <div class="mb-6">
-                                    <h4 class="font-semibold mb-2">Summary</h4>
-                                    <p id="incident-summary" class="text-gray-700">Loading summary...</p>
+                                <div>
+                                    <h4 class="flex items-center space-x-2 font-semibold mb-3 text-gray-300">
+                                        <i class="fas fa-file-lines text-gray-500"></i>
+                                        <span>Summary</span>
+                                    </h4>
+                                    <p id="incident-summary" class="text-gray-400 leading-relaxed bg-white/5 border border-white/10 p-4 rounded-lg backdrop-blur-sm">Loading summary...</p>
                                 </div>
 
-                                <div class="mb-6">
-                                    <h4 class="font-semibold mb-2">Details</h4>
-                                    <ul id="incident-details" class="list-disc list-inside text-gray-700 space-y-1">
-                                        <li>Loading details...</li>
+                                <div>
+                                    <h4 class="flex items-center space-x-2 font-semibold mb-3 text-gray-300">
+                                        <i class="fas fa-list-check text-gray-500"></i>
+                                        <span>Details</span>
+                                    </h4>
+                                    <ul id="incident-details" class="space-y-2">
+                                        <li class="flex items-start space-x-2 text-gray-400">
+                                            <i class="fas fa-circle text-xs text-gray-600 mt-1.5"></i>
+                                            <span>Loading details...</span>
+                                        </li>
                                     </ul>
                                 </div>
 
-                                <div class="mb-6">
-                                    <h4 class="font-semibold mb-2">Source Information</h4>
-                                    <div class="bg-gray-50 p-3 rounded">
-                                        <p><strong>Reports processed:</strong> <span id="report-count">0</span></p>
-                                        <p><strong>Sources:</strong> <span id="source-types">Unknown</span></p>
-                                        <p><strong>Recommended Action:</strong> <span id="recommended-action">Unknown</span></p>
+                                <div class="bg-gradient-to-br from-white/5 to-white/10 rounded-lg p-5 border border-white/10 backdrop-blur-sm">
+                                    <h4 class="flex items-center space-x-2 font-semibold mb-4 text-gray-300">
+                                        <i class="fas fa-database text-gray-500"></i>
+                                        <span>Source Information</span>
+                                    </h4>
+                                    <div class="space-y-2.5 text-sm">
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-gray-400 font-medium">Reports Processed:</span>
+                                            <span id="report-count" class="font-mono font-semibold text-white bg-white/10 px-3 py-1 rounded-md border border-white/20">0</span>
+                                        </div>
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-gray-400 font-medium">Sources:</span>
+                                            <span id="source-types" class="text-gray-300 bg-white/10 px-3 py-1 rounded-md border border-white/20">Unknown</span>
+                                        </div>
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-gray-400 font-medium">Recommended Action:</span>
+                                            <span id="recommended-action" class="font-semibold text-blue-400 bg-blue-600/20 border border-blue-500/30 px-3 py-1 rounded-md">Unknown</span>
+                                        </div>
                                     </div>
                                 </div>
 
                                 <!-- Media Attachments -->
                                 <div id="media-section" class="mb-6 hidden">
-                                    <h4 class="font-semibold mb-2">📎 Media Attachments</h4>
-                                    <div class="space-y-3">
+                                    <h4 class="flex items-center space-x-2 font-semibold mb-4 text-slate-700">
+                                        <i class="fas fa-paperclip text-slate-400"></i>
+                                        <span>Media Attachments</span>
+                                    </h4>
+                                    <div class="space-y-4">
                                         <div id="attached-images" class="hidden">
-                                            <h5 class="font-medium text-sm text-gray-700 mb-2">📷 Images</h5>
+                                            <h5 class="flex items-center space-x-2 font-medium text-sm text-slate-600 mb-3">
+                                                <i class="fas fa-image text-slate-400 text-xs"></i>
+                                                <span>Images</span>
+                                            </h5>
                                             <div id="image-gallery" class="grid grid-cols-2 gap-3"></div>
                                         </div>
                                         <div id="attached-videos" class="hidden">
-                                            <h5 class="font-medium text-sm text-gray-700 mb-2">🎥 Videos</h5>
+                                            <h5 class="flex items-center space-x-2 font-medium text-sm text-slate-600 mb-3">
+                                                <i class="fas fa-video text-slate-400 text-xs"></i>
+                                                <span>Videos</span>
+                                            </h5>
                                             <div id="video-gallery" class="space-y-2"></div>
                                         </div>
                                     </div>
@@ -264,12 +598,23 @@
                             </div>
 
                             <!-- Map -->
-                            <div>
-                                <h4 class="font-semibold mb-2">Location</h4>
-                                <div id="incident-map" class="h-80 bg-gray-200 rounded-lg relative z-10"></div>
-                                <div class="mt-2 text-sm text-gray-600">
-                                    <span id="coordinates">Coordinates: Loading...</span>
-                                    <span class="ml-4">Confidence: <span id="location-confidence">0%</span></span>
+                            <div class="space-y-4">
+                                <h4 class="flex items-center space-x-2 font-semibold text-slate-700">
+                                    <i class="fas fa-map-location-dot text-slate-400"></i>
+                                    <span>Incident Location</span>
+                                </h4>
+                                <div id="incident-map" class="h-96 bg-slate-100 rounded-lg shadow-inner border border-slate-200 relative z-10"></div>
+                                <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                                    <div class="flex items-center justify-between text-sm">
+                                        <span id="coordinates" class="flex items-center space-x-2 text-slate-600 font-mono">
+                                            <i class="fas fa-compass text-slate-400"></i>
+                                            <span>Coordinates: Loading...</span>
+                                        </span>
+                                        <span class="flex items-center space-x-2">
+                                            <span class="text-slate-600">Confidence:</span>
+                                            <span id="location-confidence" class="font-semibold text-slate-800 bg-white px-2.5 py-1 rounded-md">0%</span>
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -278,20 +623,38 @@
             </div>
 
             <!-- Recent SITREPs -->
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-2xl font-semibold text-gray-800 mb-4">📋 Recent SITREPs</h2>
+            <div class="glass-card p-8 fade-in">
+                <div class="flex items-center space-x-3 mb-6 pb-5 border-b border-white/10">
+                    <div class="bg-indigo-600/20 p-2.5 rounded-lg border border-indigo-500/30">
+                        <i class="fas fa-clock-rotate-left text-indigo-400 text-xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-semibold font-display">Recent SITREPs</h2>
+                </div>
                 <div id="recent-sitreps" class="space-y-3">
-                    <div class="text-gray-500">No SITREPs generated yet.</div>
+                    <div class="text-gray-400 text-center py-8 bg-white/5 rounded-lg border border-white/10">
+                        <i class="fas fa-inbox text-3xl text-gray-600 mb-3"></i>
+                        <p>No SITREPs generated yet.</p>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Upload Modal -->
-    <div id="upload-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-[9999] modal-overlay">
-        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 relative z-[10000]">
-            <h3 class="text-lg font-semibold mb-4">Upload Custom Reports</h3>
-            <textarea id="custom-reports" class="w-full h-40 border rounded p-3 text-sm"
+    <div id="upload-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-[9999] modal-overlay">
+        <div class="glass-card p-8 max-w-2xl w-full mx-4 relative z-[10000] fade-in">
+            <div class="flex items-center justify-between mb-6 pb-4 border-b border-white/10">
+                <h3 class="text-2xl font-semibold font-display flex items-center space-x-3">
+                    <div class="bg-purple-600/20 p-2 rounded-lg border border-purple-500/30 glow-purple">
+                        <i class="fas fa-code text-purple-400"></i>
+                    </div>
+                    <span>Upload Custom Reports (JSON)</span>
+                </h3>
+                <button id="close-modal" class="text-gray-400 hover:text-white transition-colors">
+                    <i class="fas fa-xmark text-2xl"></i>
+                </button>
+            </div>
+            <textarea id="custom-reports" class="w-full h-64 input-dark rounded-lg p-4 text-sm font-mono"
                 placeholder='Paste JSON reports here:
 [
   {
@@ -303,9 +666,15 @@
     "reporter_meta": {"source": "manual", "credibility": "medium"}
   }
 ]'></textarea>
-            <div class="flex gap-2 mt-4">
-                <button id="process-custom" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">Process</button>
-                <button id="close-modal" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded">Cancel</button>
+            <div class="flex gap-3 mt-6">
+                <button id="process-custom" class="btn-primary flex items-center space-x-2 bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 rounded-lg glow-green flex-1">
+                    <i class="fas fa-play text-sm"></i>
+                    <span>Process Reports</span>
+                </button>
+                <button id="close-modal-btn" class="flex items-center space-x-2 bg-white/5 border border-white/10 hover:bg-white/10 text-gray-300 px-6 py-3 rounded-lg transition-all">
+                    <i class="fas fa-xmark text-sm"></i>
+                    <span>Cancel</span>
+                </button>
             </div>
         </div>
     </div>
@@ -331,6 +700,7 @@
             document.getElementById('test-example').addEventListener('click', processExampleReports);
             document.getElementById('upload-json').addEventListener('click', showUploadModal);
             document.getElementById('close-modal').addEventListener('click', hideUploadModal);
+            document.getElementById('close-modal-btn').addEventListener('click', hideUploadModal);
             document.getElementById('process-custom').addEventListener('click', processCustomReports);
             document.getElementById('show-form').addEventListener('click', showReportForm);
             document.getElementById('cancel-form').addEventListener('click', hideReportForm);
@@ -450,28 +820,28 @@
             const preview = document.createElement('div');
             preview.className = 'relative group';
             preview.innerHTML = `
-                <img src="${src}" alt="${name}" class="w-full h-24 object-cover rounded-lg border">
-                <button type="button" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity" onclick="removeImagePreview(this, '${name}')">
-                    ×
+                <img src="${src}" alt="${name}" class="w-full h-24 object-cover rounded-lg border border-slate-200 shadow-sm group-hover:shadow-md transition-all">
+                <button type="button" class="absolute top-1.5 right-1.5 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity shadow-md hover:bg-red-600" onclick="removeImagePreview(this, '${name}')">
+                    <i class="fas fa-xmark"></i>
                 </button>
-                <p class="text-xs text-gray-500 mt-1 truncate">${name}</p>
+                <p class="text-xs text-slate-500 mt-1.5 truncate font-medium">${name}</p>
             `;
             document.getElementById('image-previews').appendChild(preview);
         }
 
         function displayVideoPreview(src, name) {
             const preview = document.createElement('div');
-            preview.className = 'relative group flex items-center p-3 bg-gray-50 rounded-lg border';
+            preview.className = 'relative group flex items-center p-3 bg-slate-50 rounded-lg border border-slate-200 hover:bg-slate-100 transition-all';
             preview.innerHTML = `
-                <svg class="w-8 h-8 text-gray-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                </svg>
-                <div class="flex-1">
-                    <p class="text-sm font-medium text-gray-900 truncate">${name}</p>
-                    <p class="text-xs text-gray-500">${(uploadedVideos.find(v => v.name === name)?.file.size / 1024 / 1024).toFixed(1)}MB</p>
+                <div class="bg-purple-100 p-2 rounded-lg mr-3">
+                    <i class="fas fa-video text-purple-600"></i>
                 </div>
-                <button type="button" class="ml-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity" onclick="removeVideoPreview(this, '${name}')">
-                    ×
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-slate-900 truncate">${name}</p>
+                    <p class="text-xs text-slate-500">${(uploadedVideos.find(v => v.name === name)?.file.size / 1024 / 1024).toFixed(1)}MB</p>
+                </div>
+                <button type="button" class="ml-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity shadow-md hover:bg-red-600" onclick="removeVideoPreview(this, '${name}')">
+                    <i class="fas fa-xmark"></i>
                 </button>
             `;
             document.getElementById('video-previews').appendChild(preview);
@@ -639,27 +1009,38 @@
             // Update status badge color
             const statusElement = document.getElementById('incident-status');
             const status = sitrep.status;
-            statusElement.textContent = status.charAt(0).toUpperCase() + status.slice(1);
-            statusElement.className = `px-2 py-1 rounded-full text-white ${
-                status === 'verified' ? 'bg-green-600' :
-                status === 'probable' ? 'bg-yellow-600' : 'bg-red-600'
-            }`;
+            const statusText = status.charAt(0).toUpperCase() + status.slice(1);
+            
+            let statusClass, statusIcon;
+            if (status === 'verified') {
+                statusClass = 'status-badge-verified status-verified';
+                statusIcon = 'fa-circle-check';
+            } else if (status === 'probable') {
+                statusClass = 'status-badge-probable';
+                statusIcon = 'fa-circle-exclamation';
+            } else {
+                statusClass = 'status-badge-unverified';
+                statusIcon = 'fa-circle-xmark';
+            }
+            
+            statusElement.className = `px-3 py-1.5 rounded-full font-medium flex items-center space-x-1.5 ${statusClass}`;
+            statusElement.innerHTML = `<i class="fas ${statusIcon} text-xs"></i><span>${statusText}</span>`;
 
             // Basic info
-            document.getElementById('incident-event-time').textContent = new Date(sitrep.time_window.approx_event_time).toLocaleString();
+            document.getElementById('incident-event-time').innerHTML = `<i class="fas fa-clock text-slate-400"></i><span>${new Date(sitrep.time_window.approx_event_time).toLocaleString()}</span>`;
             document.getElementById('report-count').textContent = sitrep.sources.report_count;
             document.getElementById('source-types').textContent = sitrep.sources.top_3_sources_summary.join(', ');
             document.getElementById('recommended-action').textContent = sitrep.recommended_action.replace('_', ' ');
 
             // Coordinates
             if (sitrep.location.lat && sitrep.location.lng) {
-                document.getElementById('coordinates').textContent =
-                    `Coordinates: ${sitrep.location.lat.toFixed(4)}, ${sitrep.location.lng.toFixed(4)}`;
+                document.getElementById('coordinates').innerHTML =
+                    `<i class="fas fa-compass text-slate-400"></i><span>Coordinates: ${sitrep.location.lat.toFixed(4)}, ${sitrep.location.lng.toFixed(4)}</span>`;
                 document.getElementById('location-confidence').textContent =
                     `${(sitrep.location.confidence * 100).toFixed(0)}%`;
                 initializeMap(sitrep.location);
             } else {
-                document.getElementById('coordinates').textContent = 'Coordinates: Unknown';
+                document.getElementById('coordinates').innerHTML = '<i class="fas fa-compass text-slate-400"></i><span>Coordinates: Unknown</span>';
                 document.getElementById('location-confidence').textContent = '0%';
             }
 
@@ -786,16 +1167,16 @@
             // Update language buttons
             document.querySelectorAll('.lang-btn').forEach(btn => {
                 if (btn.dataset.lang === lang) {
-                    btn.className = 'lang-btn bg-blue-600 text-white px-3 py-1 rounded';
+                    btn.className = 'lang-btn px-4 py-2.5 rounded-lg font-medium text-sm transition-all bg-red-600/80 text-white glow-red';
                 } else {
-                    btn.className = 'lang-btn bg-gray-300 text-gray-700 px-3 py-1 rounded';
+                    btn.className = 'lang-btn px-4 py-2.5 rounded-lg font-medium text-sm transition-all bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10';
                 }
             });
 
             // Update content
             document.getElementById('incident-title').textContent = currentSitrep.canonical_title;
             document.getElementById('incident-summary').textContent = currentSitrep.summary[lang] || 'Translation not available';
-            document.getElementById('incident-display-location').textContent = currentSitrep.location.name;
+            document.getElementById('incident-display-location').innerHTML = `<i class="fas fa-location-dot text-gray-500"></i><span>${currentSitrep.location.name}</span>`;
 
             // Update details
             const detailsList = document.getElementById('incident-details');
@@ -803,7 +1184,8 @@
             const details = currentSitrep.details[`bullets_${lang}`] || [];
             details.forEach(detail => {
                 const li = document.createElement('li');
-                li.textContent = detail;
+                li.className = 'flex items-start space-x-2 text-gray-400';
+                li.innerHTML = `<i class="fas fa-circle text-xs text-gray-600 mt-1.5"></i><span>${detail}</span>`;
                 detailsList.appendChild(li);
             });
         }
@@ -839,31 +1221,53 @@
                     if (data.sitreps && data.sitreps.length > 0) {
                         data.sitreps.forEach(sitrep => {
                             const div = document.createElement('div');
-                            div.className = 'flex justify-between items-center p-3 bg-gray-50 rounded cursor-pointer hover:bg-gray-100';
+                            div.className = 'flex justify-between items-center p-4 bg-white/5 border border-white/10 rounded-lg cursor-pointer hover:bg-white/10 hover:border-white/20 transition-all group';
+                            
+                            let statusClass, statusIcon;
+                            if (sitrep.status === 'verified') {
+                                statusClass = 'status-badge-verified status-verified';
+                                statusIcon = 'fa-circle-check';
+                            } else if (sitrep.status === 'probable') {
+                                statusClass = 'status-badge-probable';
+                                statusIcon = 'fa-circle-exclamation';
+                            } else {
+                                statusClass = 'status-badge-unverified';
+                                statusIcon = 'fa-circle-xmark';
+                            }
+                            
                             div.innerHTML = `
-                                <div>
-                                    <div class="font-medium">${sitrep.title}</div>
-                                    <div class="text-sm text-gray-600">${sitrep.location} • ${new Date(sitrep.timestamp).toLocaleString()}</div>
+                                <div class="flex-1">
+                                    <div class="font-medium group-hover:text-white mb-1">${sitrep.title}</div>
+                                    <div class="text-sm text-gray-400 flex items-center space-x-3">
+                                        <span class="flex items-center space-x-1.5">
+                                            <i class="fas fa-location-dot text-gray-500 text-xs"></i>
+                                            <span>${sitrep.location}</span>
+                                        </span>
+                                        <span class="flex items-center space-x-1.5">
+                                            <i class="fas fa-clock text-gray-500 text-xs"></i>
+                                            <span>${new Date(sitrep.timestamp).toLocaleString()}</span>
+                                        </span>
+                                    </div>
                                 </div>
-                                <span class="px-2 py-1 text-xs rounded-full ${
-                                    sitrep.status === 'verified' ? 'bg-green-100 text-green-800' :
-                                    sitrep.status === 'probable' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
-                                }">${sitrep.status}</span>
+                                <span class="px-3 py-1.5 text-xs rounded-full font-medium flex items-center space-x-1.5 ${statusClass}">
+                                    <i class="fas ${statusIcon}"></i>
+                                    <span>${sitrep.status}</span>
+                                </span>
                             `;
                             div.addEventListener('click', () => loadSitrep(sitrep.incident_id));
                             container.appendChild(div);
                         });
                     } else {
-                        container.innerHTML = '<div class="text-gray-500">No SITREPs generated yet.</div>';
+                        container.innerHTML = '<div class="text-gray-400 text-center py-8 bg-white/5 rounded-lg border border-white/10"><i class="fas fa-inbox text-3xl text-gray-600 mb-3 block"></i><p>No SITREPs generated yet.</p></div>';
                     }
                 } else {
-                    container.innerHTML = `<div class="text-red-500">Error loading SITREPs: ${data.error || 'Unknown error'}</div>`;
+                    container.innerHTML = `<div class="text-red-600 text-center py-8 bg-red-50 rounded-lg border border-red-200"><i class="fas fa-circle-exclamation text-3xl text-red-300 mb-3 block"></i><p>Error loading SITREPs: ${data.error || 'Unknown error'}</p></div>`;
                     console.error('Error response:', data);
                 }
             } catch (error) {
                 console.error('Error loading recent SITREPs:', error);
                 const container = document.getElementById('recent-sitreps');
-                container.innerHTML = `<div class="text-red-500">Network error: ${error.message}</div>`;
+                container.innerHTML = `<div class="text-red-600 text-center py-8 bg-red-50 rounded-lg border border-red-200"><i class="fas fa-triangle-exclamation text-3xl text-red-300 mb-3 block"></i><p>Network error: ${error.message}</p></div>`;
             }
         }
 

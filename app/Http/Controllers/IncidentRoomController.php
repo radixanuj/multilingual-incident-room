@@ -140,7 +140,10 @@ class IncidentRoomController extends Controller
                 'has_media' => isset($report['media_attachments']),
             ]);
 
-            return response()->json($validatedSitrep, 200);
+            // Clean UTF-8 data before returning JSON response
+            $cleanedSitrep = $this->cleanUtf8Data($validatedSitrep);
+            
+            return response()->json($cleanedSitrep, 200, [], JSON_UNESCAPED_UNICODE);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
@@ -295,7 +298,10 @@ class IncidentRoomController extends Controller
                 'report_count' => $validatedSitrep['sources']['report_count'],
             ]);
 
-            return response()->json($validatedSitrep, 200);
+            // Clean UTF-8 data before returning JSON response
+            $cleanedSitrep = $this->cleanUtf8Data($validatedSitrep);
+            
+            return response()->json($cleanedSitrep, 200, [], JSON_UNESCAPED_UNICODE);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
@@ -509,16 +515,51 @@ class IncidentRoomController extends Controller
      */
     private function saveSitrepToFile(array $sitrep): void
     {
-        $filename = "sitreps/{$sitrep['incident_id']}.json";
-        Storage::disk('local')->put($filename, json_encode($sitrep, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        // Clean the data to ensure valid UTF-8
+        $cleanedSitrep = $this->cleanUtf8Data($sitrep);
+        
+        $filename = "sitreps/{$cleanedSitrep['incident_id']}.json";
+        
+        // Encode with error handling
+        $jsonData = json_encode($cleanedSitrep, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        
+        if ($jsonData === false) {
+            $error = json_last_error_msg();
+            Log::error('JSON encoding failed for SITREP', [
+                'incident_id' => $cleanedSitrep['incident_id'],
+                'error' => $error
+            ]);
+            throw new \RuntimeException("Failed to encode SITREP as JSON: {$error}");
+        }
+        
+        Storage::disk('local')->put($filename, $jsonData);
         
         // Also save as the main sitrep.json for dashboard
-        Storage::disk('local')->put('sitrep.json', json_encode($sitrep, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        Storage::disk('local')->put('sitrep.json', $jsonData);
         
         Log::info('SITREP saved to file', [
-            'incident_id' => $sitrep['incident_id'],
+            'incident_id' => $cleanedSitrep['incident_id'],
             'filename' => $filename
         ]);
+    }
+    
+    /**
+     * Recursively clean UTF-8 data in arrays and strings
+     */
+    private function cleanUtf8Data($data)
+    {
+        if (is_array($data)) {
+            return array_map([$this, 'cleanUtf8Data'], $data);
+        }
+        
+        if (is_string($data)) {
+            // Remove invalid UTF-8 characters
+            $data = mb_convert_encoding($data, 'UTF-8', 'UTF-8');
+            // Alternative: use iconv for stricter cleaning
+            // $data = iconv('UTF-8', 'UTF-8//IGNORE', $data);
+        }
+        
+        return $data;
     }
 
     /**

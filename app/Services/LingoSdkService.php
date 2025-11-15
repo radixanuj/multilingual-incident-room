@@ -29,6 +29,8 @@ class LingoSdkService
     public function translate(string $text, string $source = 'auto', string $target = 'en'): string
     {
         try {
+            // Clean UTF-8 before translation
+            $text = $this->cleanUtf8($text);
             return $this->performTranslation($text, $source, $target);
         } catch (\Exception $e) {
             // Fallback: return original text if translation fails
@@ -47,6 +49,8 @@ class LingoSdkService
     public function compile(string $sourceText, array $targetLocales = ['hi', 'bn']): array
     {
         try {
+            // Clean UTF-8 before translation
+            $sourceText = $this->cleanUtf8($sourceText);
             return $this->performBatchTranslation($sourceText, $targetLocales);
         } catch (\Exception $e) {
             Log::warning('Lingo batch translation failed, falling back to individual translations: ' . $e->getMessage());
@@ -63,11 +67,22 @@ class LingoSdkService
     public function detectLanguage(string $text): string
     {
         try {
+            // Clean UTF-8 before language detection
+            $text = $this->cleanUtf8($text);
             return $this->engine->recognizeLocale($text);
         } catch (\Exception $e) {
             Log::warning('Lingo language detection failed: ' . $e->getMessage());
             return $this->fallbackLanguageDetection($text);
         }
+    }
+    
+    /**
+     * Clean malformed UTF-8 characters from text
+     */
+    private function cleanUtf8(string $text): string
+    {
+        // Remove invalid UTF-8 characters
+        return mb_convert_encoding($text, 'UTF-8', 'UTF-8');
     }
 
     /**
