@@ -5,7 +5,8 @@ namespace App\Http\Controllers;
 use App\Services\LingoSdkService;
 use App\Services\GeocodingService;
 use App\Services\ReportProcessingPipeline;
-use App\Services\SitrepSynthesizer;
+use App\Services\SitrepSynthesizerV2;
+use App\Services\OpenAIAnalysisService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
@@ -13,23 +14,27 @@ use Illuminate\Support\Facades\Storage;
 
 class IncidentRoomController extends Controller
 {
-    private const DEFAULT_TEST_LOCATION = 'Karol Bagh, Delhi';
-    
     private ReportProcessingPipeline $pipeline;
-    private SitrepSynthesizer $synthesizer;
+    private SitrepSynthesizerV2 $synthesizerV2;
     private GeocodingService $geocodingService;
+    private OpenAIAnalysisService $openaiService;
+    private LingoSdkService $lingoService;
 
     public function __construct(
         LingoSdkService $lingo,
-        GeocodingService $geocoding
+        GeocodingService $geocoding,
+        OpenAIAnalysisService $openai
     ) {
-        $this->pipeline = new ReportProcessingPipeline($lingo, $geocoding);
-        $this->synthesizer = new SitrepSynthesizer($lingo);
+        $this->pipeline = new ReportProcessingPipeline($lingo, $geocoding, $openai);
+        $this->synthesizerV2 = new SitrepSynthesizerV2($lingo);
         $this->geocodingService = $geocoding;
+        $this->openaiService = $openai;
+        $this->lingoService = $lingo;
     }
 
     /**
      * Submit incident form with file uploads
+     * NEW WORKFLOW: Upload → Lingo normalize → OpenAI analyze → store canonical EN → Lingo fan-out
      */
     public function submitForm(Request $request): JsonResponse
     {
@@ -40,93 +45,115 @@ class IncidentRoomController extends Controller
         ignore_user_abort(true);
         
         try {
-            // Validate input
+            // Log incoming request for debugging
+            Log::info('Form submission received', [
+                'has_files' => $request->hasFile('images') || $request->hasFile('videos'),
+                'all_files' => $request->allFiles(),
+            ]);
+
+            // Validate input - now includes incident_title and incident_datetime
             $validated = $request->validate([
+                'incident_title' => 'required|string|max:200',
                 'raw_text' => 'required|string|max:10000',
                 'location' => 'required|string|max:500',
                 'original_language' => 'nullable|string',
-                'source_type' => 'nullable|string',
                 'source_credibility' => 'nullable|string',
-                'timestamp' => 'nullable|string',
-                'images.*' => 'nullable|file|image|max:10240', // 10MB max per image
-                'videos.*' => 'nullable|file|mimes:mp4,mov,avi,mkv|max:51200', // 50MB max per video
+                'incident_datetime' => 'nullable|string',
+                'images' => 'nullable|array',
+                'images.*' => 'nullable|file|mimes:jpeg,jpg,png,gif,webp|max:10240', // 10MB max per image
+                'videos' => 'nullable|array',
+                'videos.*' => 'nullable|file|mimes:mp4,mov,avi,mkv,webm|max:51200', // 50MB max per video
+            ]);
+
+            Log::info('NEW WORKFLOW: Processing incident with OpenAI', [
+                'title' => $validated['incident_title'],
+                'location' => $validated['location']
             ]);
 
             // Handle file uploads
             $uploadedFiles = $this->handleFileUploads($request);
+            
+            // Prepare images for OpenAI GPT-4 Vision (base64 encoding)
+            $imageData = [];
+            if (!empty($uploadedFiles['images'])) {
+                foreach ($uploadedFiles['images'] as $image) {
+                    try {
+                        $imageContent = Storage::get($image['path']);
+                        $base64 = base64_encode($imageContent);
+                        $imageData[] = [
+                            'base64_data' => $base64,
+                            'mime_type' => $image['mime_type'],
+                            'filename' => $image['original_name']
+                        ];
+                    } catch (\Exception $e) {
+                        Log::warning('Failed to encode image for OpenAI', [
+                            'file' => $image['original_name'],
+                            'error' => $e->getMessage()
+                        ]);
+                    }
+                }
+            }
 
-            // Build the report object
-            $report = [
+            // Prepare videos for OpenAI (Whisper + GPT-4 Vision frame analysis)
+            $videoData = [];
+            if (!empty($uploadedFiles['videos'])) {
+                foreach ($uploadedFiles['videos'] as $video) {
+                    try {
+                        // Get full storage path for local processing
+                        $videoPath = Storage::path($video['path']);
+                        
+                        Log::info('Processing video for OpenAI analysis', [
+                            'filename' => $video['original_name'],
+                            'mime_type' => $video['mime_type'],
+                            'size' => filesize($videoPath)
+                        ]);
+
+                        // Store video path for OpenAI service (will extract audio + frames)
+                        $videoData[] = [
+                            'path' => $videoPath,
+                            'mime_type' => $video['mime_type'],
+                            'filename' => $video['original_name']
+                        ];
+                        
+                        Log::info('Video ready for OpenAI analysis', [
+                            'path' => $videoPath
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::warning('Failed to process video for OpenAI', [
+                            'file' => $video['original_name'],
+                            'error' => $e->getMessage()
+                        ]);
+                    }
+                }
+            }
+
+            // Build incident data for new workflow
+            $incidentData = [
+                'incident_title' => $validated['incident_title'],
+                'incident_datetime' => $validated['incident_datetime'] ?? now()->toISOString(),
+                'incident_location' => $validated['location'],
                 'raw_text' => $validated['raw_text'],
-                'location' => $validated['location'],
                 'original_language' => $validated['original_language'] ?? 'auto',
-                'source_type' => $validated['source_type'] ?? 'text',
-                'timestamp' => $validated['timestamp'] ?? now()->toISOString(),
-                'reporter_meta' => [
-                    'source' => $validated['source_type'] ?? 'form_submission',
-                    'credibility' => $validated['source_credibility'] ?? 'medium'
-                ]
+                'source_credibility' => $validated['source_credibility'] ?? 'medium',
+                'images' => $imageData,
+                'videos' => $videoData,
+                'media_attachments' => $uploadedFiles,
             ];
 
-            // Add media information to the report
-            if (!empty($uploadedFiles['images']) || !empty($uploadedFiles['videos'])) {
-                $report['media_attachments'] = $uploadedFiles;
-                
-                // Append media info to text for processing
-                if (!empty($uploadedFiles['images'])) {
-                    $imageNames = array_column($uploadedFiles['images'], 'original_name');
-                    $report['raw_text'] .= "\n\n📷 Attached Images: " . implode(', ', $imageNames);
-                }
-                if (!empty($uploadedFiles['videos'])) {
-                    $videoNames = array_column($uploadedFiles['videos'], 'original_name');
-                    $report['raw_text'] .= "\n\n🎥 Attached Videos: " . implode(', ', $videoNames);
-                }
-            }
-
-            // Generate unique ID for the report
-            $report['id'] = 'form_' . uniqid() . '_0';
-
-            // Geocode the location
-            try {
-                $geocoded = $this->geocodingService->resolve($report['location']);
-                $report['geocoded_location'] = $geocoded;
-                Log::info("Geocoded location for form report {$report['id']}", [
-                    'location' => $report['location'],
-                    'coordinates' => $geocoded,
-                ]);
-            } catch (\Exception $e) {
-                Log::warning("Failed to geocode location for form report {$report['id']}", [
-                    'location' => $report['location'],
-                    'error' => $e->getMessage(),
-                ]);
-                $report['geocoded_location'] = [
-                    'lat' => null,
-                    'lng' => null,
-                    'confidence' => 0,
-                    'display_name' => $report['location']
-                ];
-            }
-
-            Log::info('Processing form-based incident report', [
-                'report_id' => $report['id'],
-                'has_media' => !empty($report['media_attachments']),
-                'images_count' => count($uploadedFiles['images'] ?? []),
-                'videos_count' => count($uploadedFiles['videos'] ?? []),
+            // NEW WORKFLOW: Process through OpenAI pipeline
+            // Step 1 & 2: Lingo normalize + OpenAI analyze
+            $aiReport = $this->pipeline->processIncidentWithAI($incidentData);
+            
+            Log::info('OpenAI analysis completed', [
+                'title' => $aiReport['incident_title'] ?? 'N/A'
             ]);
 
-            // Process the report through the pipeline
-            $clusters = $this->pipeline->processReports([$report]);
-
-            if (empty($clusters)) {
-                return response()->json([
-                    'error' => 'Could not process the incident report',
-                    'message' => 'Report may lack sufficient information or confidence scores',
-                ], 422);
-            }
-
-            // Process the cluster and generate SITREP
-            $primaryCluster = $this->selectPrimaryCluster($clusters);
-            $sitrep = $this->synthesizer->synthesize($primaryCluster);
+            // Step 3: Store canonical EN + Lingo fan-out to 2 languages (EN + HI)
+            $sitrep = $this->synthesizerV2->synthesizeFromGemini($aiReport);
+            
+            // Add details bullets for UI compatibility
+            $detailsBullets = $this->synthesizerV2->generateDetailsBullets($aiReport);
+            $sitrep['details'] = $detailsBullets;
 
             // Apply quality checks
             $validatedSitrep = $this->applyQualityChecks($sitrep);
@@ -134,10 +161,10 @@ class IncidentRoomController extends Controller
             // Save SITREP to file
             $this->saveSitrepToFile($validatedSitrep);
 
-            Log::info('Form-based SITREP generated successfully', [
+            Log::info('SITREP generated with Gemini + Lingo workflow', [
                 'incident_id' => $validatedSitrep['incident_id'],
                 'status' => $validatedSitrep['status'],
-                'has_media' => isset($report['media_attachments']),
+                'languages' => count($validatedSitrep['summary']),
             ]);
 
             // Clean UTF-8 data before returning JSON response
@@ -146,9 +173,18 @@ class IncidentRoomController extends Controller
             return response()->json($cleanedSitrep, 200, [], JSON_UNESCAPED_UNICODE);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::warning('Validation failed for form submission', [
+                'errors' => $e->errors(),
+                'has_images' => $request->hasFile('images'),
+                'has_videos' => $request->hasFile('videos'),
+                'image_count' => count($request->file('images') ?? []),
+                'video_count' => count($request->file('videos') ?? []),
+            ]);
+            
             return response()->json([
                 'error' => 'Validation failed',
                 'details' => $e->errors(),
+                'message' => 'Please check your input and uploaded files',
             ], 422);
 
         } catch (\Exception $e) {
@@ -159,7 +195,7 @@ class IncidentRoomController extends Controller
 
             return response()->json([
                 'error' => 'Internal processing error',
-                'message' => 'Failed to process incident form',
+                'message' => 'Failed to process incident form: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -217,157 +253,6 @@ class IncidentRoomController extends Controller
 
     /**
      * Process incident reports and generate SITREP
-     */
-    public function processReports(Request $request): JsonResponse
-    {
-        // Increase PHP execution time limit for processing
-        set_time_limit(300); // 5 minutes
-        ini_set('max_execution_time', 300);
-        ini_set('memory_limit', '512M'); // Increase memory limit
-        ignore_user_abort(true); // Continue processing even if user disconnects
-        
-        try {
-            // Validate input
-            $validated = $request->validate([
-                'reports' => 'required|array|min:1|max:10',
-                'reports.*.raw_text' => 'required|string',
-                'reports.*.location' => 'required|string',
-                'reports.*.original_language' => 'nullable|string',
-                'reports.*.source_type' => 'nullable|string',
-                'reports.*.timestamp' => 'nullable|string',
-                'reports.*.reporter_meta' => 'nullable|array',
-            ]);
-
-            $reports = $validated['reports'];
-
-            // Auto-generate IDs and process locations
-            foreach ($reports as $index => &$report) {
-                // Generate unique ID for each report
-                $report['id'] = 'r' . uniqid() . '_' . $index;
-                
-                // Geocode the location
-                try {
-                    $geocoded = $this->geocodingService->resolve($report['location']);
-                    $report['geocoded_location'] = $geocoded;
-                    Log::info("Geocoded location for report {$report['id']}", [
-                        'location' => $report['location'],
-                        'coordinates' => $geocoded,
-                    ]);
-                } catch (\Exception $e) {
-                    Log::warning("Failed to geocode location for report {$report['id']}", [
-                        'location' => $report['location'],
-                        'error' => $e->getMessage(),
-                    ]);
-                    $report['geocoded_location'] = [
-                        'lat' => null,
-                        'lng' => null,
-                        'confidence' => 0,
-                        'display_name' => $report['location']
-                    ];
-                }
-            }
-
-            Log::info('Processing incident reports', [
-                'report_count' => count($reports),
-                'report_ids' => array_column($reports, 'id'),
-            ]);
-
-            // Run the complete pipeline
-            $clusters = $this->pipeline->processReports($reports);
-
-            if (empty($clusters)) {
-                return response()->json([
-                    'error' => 'No valid incidents could be formed from the provided reports',
-                    'message' => 'Reports may be too dissimilar or lack sufficient confidence scores',
-                ], 422);
-            }
-
-            // Process the highest-confidence cluster
-            $primaryCluster = $this->selectPrimaryCluster($clusters);
-            $sitrep = $this->synthesizer->synthesize($primaryCluster);
-
-            // Apply quality checks
-            $validatedSitrep = $this->applyQualityChecks($sitrep);
-
-            // Save SITREP to file
-            $this->saveSitrepToFile($validatedSitrep);
-
-            Log::info('SITREP generated successfully', [
-                'incident_id' => $validatedSitrep['incident_id'],
-                'status' => $validatedSitrep['status'],
-                'report_count' => $validatedSitrep['sources']['report_count'],
-            ]);
-
-            // Clean UTF-8 data before returning JSON response
-            $cleanedSitrep = $this->cleanUtf8Data($validatedSitrep);
-            
-            return response()->json($cleanedSitrep, 200, [], JSON_UNESCAPED_UNICODE);
-
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'error' => 'Validation failed',
-                'details' => $e->errors(),
-            ], 422);
-
-        } catch (\Exception $e) {
-            Log::error('Error processing reports', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            return response()->json([
-                'error' => 'Internal processing error',
-                'message' => 'Failed to process incident reports',
-            ], 500);
-        }
-    }
-
-    /**
-     * Test endpoint with example data
-     */
-    public function testWithExampleData(): JsonResponse
-    {
-        // Increase PHP execution time limit for processing
-        set_time_limit(300); // 5 minutes
-        ini_set('max_execution_time', 300);
-        ini_set('memory_limit', '512M'); // Increase memory limit
-        ignore_user_abort(true); // Continue processing even if user disconnects
-        
-        $exampleReports = [
-            [
-                'raw_text' => 'दिल्ली के करोल बाग में एक जोरदार धमाका हुआ, बहुत तेज आवाज़, कई लोगों ने सुना, अभी तक चोट की खबर नहीं मिली',
-                'location' => self::DEFAULT_TEST_LOCATION,
-                'original_language' => 'hi',
-                'source_type' => 'voice-transcript',
-                'timestamp' => '2025-11-15T07:12:00+05:30',
-                'reporter_meta' => ['source' => 'field_call', 'credibility' => 'unknown'],
-            ],
-            [
-                'raw_text' => 'করোল বাগ এলাকায় বিস্ফোরণ শোনা গেছে, লোকেরা বাইরে হয়েছে, কেউ আহত হয়েছে জানি না',
-                'location' => self::DEFAULT_TEST_LOCATION,
-                'original_language' => 'bn',
-                'source_type' => 'voice-transcript',
-                'timestamp' => '2025-11-15T07:13:27+05:30',
-                'reporter_meta' => ['source' => 'citizen_sms', 'credibility' => 'unknown'],
-            ],
-            [
-                'raw_text' => 'Loud explosion reported near Karol Bagh, Delhi. Many people heard the blast. No confirmed casualties yet.',
-                'location' => self::DEFAULT_TEST_LOCATION,
-                'original_language' => 'en',
-                'source_type' => 'text',
-                'timestamp' => '2025-11-15T07:11:50+05:30',
-                'reporter_meta' => ['source' => 'social_media_scrape', 'credibility' => 'low'],
-            ],
-        ];
-
-        $request = new Request();
-        $request->merge(['reports' => $exampleReports]);
-
-        return $this->processReports($request);
-    }
-
-    /**
-     * Get stored SITREP by incident ID
      */
     public function getSitrep(string $incidentId): JsonResponse
     {

@@ -39,4 +39,8 @@ return [
         'api_key' => env('LINGO_API_KEY'),
     ],
 
+    'openai' => [
+        'api_key' => env('OPENAI_API_KEY'),
+    ],
+
 ];

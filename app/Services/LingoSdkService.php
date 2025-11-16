@@ -41,13 +41,19 @@ class LingoSdkService
 
     /**
      * Generate localized versions of English text
+     * Now supports 10+ international languages
      *
      * @param string $sourceText English source text
      * @param array $targetLocales Array of target locale codes
      * @return array Associative array with locale codes as keys
      */
-    public function compile(string $sourceText, array $targetLocales = ['hi', 'bn']): array
+    public function compile(string $sourceText, array $targetLocales = null): array
     {
+        // Default to 10+ supported languages
+        if ($targetLocales === null) {
+            $targetLocales = $this->getDefaultTargetLanguages();
+        }
+        
         try {
             // Clean UTF-8 before translation
             $sourceText = $this->cleanUtf8($sourceText);
@@ -56,6 +62,20 @@ class LingoSdkService
             Log::warning('Lingo batch translation failed, falling back to individual translations: ' . $e->getMessage());
             return $this->fallbackIndividualTranslations($sourceText, $targetLocales);
         }
+    }
+
+    /**
+     * Get list of supported languages for multilingual output
+     * Reduced to 2 languages for faster processing: English + Hindi
+     * 
+     * @return array
+     */
+    public function getDefaultTargetLanguages(): array
+    {
+        return [
+            'hi',  // Hindi (हिंदी)
+            // Only Hindi for now - English is the source language
+        ];
     }
 
     /**

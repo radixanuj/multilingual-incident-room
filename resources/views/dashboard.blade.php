@@ -339,6 +339,16 @@
                             <!-- Left Column -->
                             <div class="space-y-5">
                                 <div>
+                                    <label for="incident-title" class="flex items-center space-x-2 text-sm font-medium text-gray-300 mb-3">
+                                        <i class="fas fa-heading text-gray-500 text-xs"></i>
+                                        <span>Incident Title <span class="text-red-400">*</span></span>
+                                    </label>
+                                    <input type="text" id="incident-title" name="incident_title" required
+                                        class="w-full input-dark rounded-lg px-4 py-3.5"
+                                        placeholder="e.g., Building collapse in residential area">
+                                </div>
+
+                                <div>
                                     <label for="incident-text" class="flex items-center space-x-2 text-sm font-medium text-gray-300 mb-3">
                                         <i class="fas fa-align-left text-gray-500 text-xs"></i>
                                         <span>Incident Description <span class="text-red-400">*</span></span>
@@ -358,38 +368,28 @@
                                         placeholder="e.g., Karol Bagh, Delhi or specific address">
                                 </div>
 
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label for="original-language" class="flex items-center space-x-2 text-sm font-medium text-gray-300 mb-3">
-                                            <i class="fas fa-language text-gray-500 text-xs"></i>
-                                            <span>Language</span>
-                                        </label>
-                                        <select id="original-language" name="original_language"
-                                            class="w-full input-dark rounded-lg px-4 py-3.5">
-                                            <option value="auto">Auto-detect</option>
-                                            <option value="en">English</option>
-                                            <option value="hi">Hindi (हिंदी)</option>
-                                            <option value="bn">Bengali (বাংলা)</option>
-                                            <option value="ur">Urdu (اردو)</option>
-                                            <option value="ta">Tamil (தமிழ்)</option>
-                                            <option value="te">Telugu (తెలుగు)</option>
-                                        </select>
-                                    </div>
-
-                                    <div>
-                                        <label for="source-type" class="flex items-center space-x-2 text-sm font-medium text-gray-300 mb-3">
-                                            <i class="fas fa-podcast text-gray-500 text-xs"></i>
-                                            <span>Source Type</span>
-                                        </label>
-                                        <select id="source-type" name="source_type"
-                                            class="w-full input-dark rounded-lg px-4 py-3.5">
-                                            <option value="text">Text Report</option>
-                                            <option value="voice-transcript">Voice Transcript</option>
-                                            <option value="social_media">Social Media</option>
-                                            <option value="field_call">Field Call</option>
-                                            <option value="citizen_sms">Citizen SMS</option>
-                                        </select>
-                                    </div>
+                                <div>
+                                    <label for="original-language" class="flex items-center space-x-2 text-sm font-medium text-gray-300 mb-3">
+                                        <i class="fas fa-language text-gray-500 text-xs"></i>
+                                        <span>Language</span>
+                                    </label>
+                                    <select id="original-language" name="original_language"
+                                        class="w-full input-dark rounded-lg px-4 py-3.5">
+                                        <option value="auto">Auto-detect</option>
+                                        <option value="en">English</option>
+                                        <option value="hi">Hindi (हिंदी)</option>
+                                        <option value="bn">Bengali (বাংলা)</option>
+                                        <option value="ur">Urdu (اردو)</option>
+                                        <option value="ta">Tamil (தமிழ்)</option>
+                                        <option value="te">Telugu (తెలుగు)</option>
+                                        <option value="fr">French (Français)</option>
+                                        <option value="es">Spanish (Español)</option>
+                                        <option value="de">German (Deutsch)</option>
+                                        <option value="zh">Chinese (中文)</option>
+                                        <option value="ar">Arabic (العربية)</option>
+                                        <option value="pt">Portuguese (Português)</option>
+                                        <option value="ja">Japanese (日本語)</option>
+                                    </select>
                                 </div>
 
                                 <div class="grid grid-cols-2 gap-4">
@@ -412,9 +412,9 @@
                                     <div>
                                         <label for="incident-time" class="flex items-center space-x-2 text-sm font-medium text-gray-300 mb-3">
                                             <i class="fas fa-clock text-gray-500 text-xs"></i>
-                                            <span>Incident Time</span>
+                                            <span>Incident Date & Time</span>
                                         </label>
-                                        <input type="datetime-local" id="incident-time" name="timestamp"
+                                        <input type="datetime-local" id="incident-time" name="incident_datetime"
                                             class="w-full input-dark rounded-lg px-4 py-3.5">
                                     </div>
                                 </div>
@@ -474,12 +474,67 @@
                 </div>
 
                 <div id="processing-status" class="mt-6 hidden">
-                    <div class="flex items-center justify-center space-x-3 bg-blue-600/10 border border-blue-500/30 rounded-lg p-4 text-blue-400 glow-blue">
-                        <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <span class="font-medium">Processing report through multilingual pipeline...</span>
+                    <div class="bg-white/5 border border-white/10 rounded-lg p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-white flex items-center space-x-2">
+                                <i class="fas fa-gears text-blue-400"></i>
+                                <span>Processing Incident Report</span>
+                            </h3>
+                            <span id="progress-percentage" class="text-blue-400 font-mono font-semibold">0%</span>
+                        </div>
+                        
+                        <!-- Progress Bar -->
+                        <div class="relative w-full h-3 bg-white/10 rounded-full overflow-hidden mb-6">
+                            <div id="progress-bar" class="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 transition-all duration-500 ease-out glow-blue" style="width: 0%"></div>
+                        </div>
+                        
+                        <!-- Processing Steps -->
+                        <div class="space-y-3">
+                            <div id="step-upload" class="flex items-center space-x-3 text-gray-400 transition-all">
+                                <div class="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center">
+                                    <i class="fas fa-upload text-sm"></i>
+                                </div>
+                                <span class="flex-1">Uploading evidence</span>
+                                <i class="fas fa-circle-notch fa-spin hidden step-spinner"></i>
+                                <i class="fas fa-check text-green-400 hidden step-check"></i>
+                            </div>
+                            
+                            <div id="step-normalize" class="flex items-center space-x-3 text-gray-400 transition-all">
+                                <div class="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center">
+                                    <i class="fas fa-broom text-sm"></i>
+                                </div>
+                                <span class="flex-1">Normalizing content (Lingo)</span>
+                                <i class="fas fa-circle-notch fa-spin hidden step-spinner"></i>
+                                <i class="fas fa-check text-green-400 hidden step-check"></i>
+                            </div>
+                            
+                            <div id="step-analyze" class="flex items-center space-x-3 text-gray-400 transition-all">
+                                <div class="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center">
+                                    <i class="fas fa-brain text-sm"></i>
+                                </div>
+                                <span class="flex-1">AI Analysis (OpenAI)</span>
+                                <i class="fas fa-circle-notch fa-spin hidden step-spinner"></i>
+                                <i class="fas fa-check text-green-400 hidden step-check"></i>
+                            </div>
+                            
+                            <div id="step-translate" class="flex items-center space-x-3 text-gray-400 transition-all">
+                                <div class="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center">
+                                    <i class="fas fa-language text-sm"></i>
+                                </div>
+                                <span class="flex-1">Processing</span>
+                                <i class="fas fa-circle-notch fa-spin hidden step-spinner"></i>
+                                <i class="fas fa-check text-green-400 hidden step-check"></i>
+                            </div>
+                            
+                            <div id="step-complete" class="flex items-center space-x-3 text-gray-400 transition-all">
+                                <div class="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center">
+                                    <i class="fas fa-circle-check text-sm"></i>
+                                </div>
+                                <span class="flex-1">Generating SITREP</span>
+                                <i class="fas fa-circle-notch fa-spin hidden step-spinner"></i>
+                                <i class="fas fa-check text-green-400 hidden step-check"></i>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -501,9 +556,6 @@
                             <button id="lang-hi" class="lang-btn px-4 py-2.5 rounded-lg font-medium text-sm transition-all bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10" data-lang="hi">
                                 <i class="fas fa-flag mr-1.5"></i>हिंदी
                             </button>
-                            <button id="lang-bn" class="lang-btn px-4 py-2.5 rounded-lg font-medium text-sm transition-all bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10" data-lang="bn">
-                                <i class="fas fa-flag mr-1.5"></i>বাংলা
-                            </button>
                         </div>
                     </div>
 
@@ -513,7 +565,7 @@
                             <!-- Main Info -->
                             <div class="space-y-6">
                                 <div class="bg-white/5 border border-white/10 rounded-lg p-6 backdrop-blur-sm">
-                                    <h3 class="text-xl font-semibold mb-3" id="incident-title">Loading...</h3>
+                                    <h3 class="text-xl font-semibold mb-3" id="incident-title"></h3>
                                     <div class="flex flex-wrap items-center gap-3 text-sm">
                                         <span id="incident-status" class="px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-gray-300 font-medium flex items-center space-x-1.5">
                                             <i class="fas fa-circle-info text-xs"></i>
@@ -535,7 +587,7 @@
                                         <i class="fas fa-file-lines text-gray-500"></i>
                                         <span>Summary</span>
                                     </h4>
-                                    <p id="incident-summary" class="text-gray-400 leading-relaxed bg-white/5 border border-white/10 p-4 rounded-lg backdrop-blur-sm">Loading summary...</p>
+                                    <p id="incident-summary" class="text-gray-400 leading-relaxed bg-white/5 border border-white/10 p-4 rounded-lg backdrop-blur-sm min-h-[4rem] max-h-[12rem] overflow-y-auto"></p>
                                 </div>
 
                                 <div>
@@ -543,11 +595,7 @@
                                         <i class="fas fa-list-check text-gray-500"></i>
                                         <span>Details</span>
                                     </h4>
-                                    <ul id="incident-details" class="space-y-2">
-                                        <li class="flex items-start space-x-2 text-gray-400">
-                                            <i class="fas fa-circle text-xs text-gray-600 mt-1.5"></i>
-                                            <span>Loading details...</span>
-                                        </li>
+                                    <ul id="incident-details" class="space-y-2 max-h-[16rem] overflow-y-auto">
                                     </ul>
                                 </div>
 
@@ -608,7 +656,7 @@
                                     <div class="flex items-center justify-between text-sm">
                                         <span id="coordinates" class="flex items-center space-x-2 text-slate-600 font-mono">
                                             <i class="fas fa-compass text-slate-400"></i>
-                                            <span>Coordinates: Loading...</span>
+                                            <span>Coordinates: --</span>
                                         </span>
                                         <span class="flex items-center space-x-2">
                                             <span class="text-slate-600">Confidence:</span>
@@ -881,14 +929,22 @@
             e.preventDefault();
             
             const formElement = e.target;
-            const formData = new FormData(formElement);
+            const formData = new FormData();
             
-            // Add uploaded images to form data
+            // Add form fields manually (excluding file inputs)
+            formData.append('incident_title', document.getElementById('incident-title').value);
+            formData.append('raw_text', document.getElementById('incident-text').value);
+            formData.append('location', document.getElementById('incident-location').value);
+            formData.append('original_language', document.getElementById('original-language').value);
+            formData.append('source_credibility', document.getElementById('source-credibility').value);
+            formData.append('incident_datetime', document.getElementById('incident-time').value);
+            
+            // Add uploaded images to form data (from our custom arrays)
             uploadedImages.forEach((image, index) => {
                 formData.append(`images[${index}]`, image.file);
             });
             
-            // Add uploaded videos to form data
+            // Add uploaded videos to form data (from our custom arrays)
             uploadedVideos.forEach((video, index) => {
                 formData.append(`videos[${index}]`, video.file);
             });
@@ -1174,7 +1230,17 @@
             });
 
             // Update content
-            document.getElementById('incident-title').textContent = currentSitrep.canonical_title;
+            const titleElement = document.getElementById('incident-title');
+            titleElement.textContent = currentSitrep.canonical_title;
+            
+            // Add warning if using fallback (AI analysis failed)
+            if (currentSitrep.audit && currentSitrep.audit.is_fallback) {
+                const warningBadge = document.createElement('span');
+                warningBadge.className = 'ml-3 px-3 py-1 text-xs bg-yellow-600/20 border border-yellow-500/30 text-yellow-400 rounded-full';
+                warningBadge.innerHTML = '<i class="fas fa-exclamation-triangle mr-1"></i>AI Analysis Unavailable';
+                titleElement.appendChild(warningBadge);
+            }
+            
             document.getElementById('incident-summary').textContent = currentSitrep.summary[lang] || 'Translation not available';
             document.getElementById('incident-display-location').innerHTML = `<i class="fas fa-location-dot text-gray-500"></i><span>${currentSitrep.location.name}</span>`;
 
@@ -1286,10 +1352,62 @@
 
         function showProcessingStatus() {
             document.getElementById('processing-status').classList.remove('hidden');
+            // Simulate progress
+            updateProgress(0, 'upload');
+            setTimeout(() => updateProgress(20, 'normalize'), 500);
+            setTimeout(() => updateProgress(50, 'analyze'), 1500);
+            setTimeout(() => updateProgress(80, 'translate'), 3000);
+        }
+
+        function updateProgress(percentage, currentStep) {
+            const progressBar = document.getElementById('progress-bar');
+            const progressPercentage = document.getElementById('progress-percentage');
+            
+            if (progressBar) {
+                progressBar.style.width = percentage + '%';
+                progressPercentage.textContent = percentage + '%';
+            }
+            
+            const steps = ['upload', 'normalize', 'analyze', 'translate', 'complete'];
+            steps.forEach(step => {
+                const stepElement = document.getElementById(`step-${step}`);
+                const spinner = stepElement?.querySelector('.step-spinner');
+                const check = stepElement?.querySelector('.step-check');
+                
+                if (step === currentStep) {
+                    stepElement?.classList.remove('text-gray-400');
+                    stepElement?.classList.add('text-blue-400');
+                    spinner?.classList.remove('hidden');
+                    check?.classList.add('hidden');
+                } else if (steps.indexOf(step) < steps.indexOf(currentStep)) {
+                    stepElement?.classList.remove('text-gray-400', 'text-blue-400');
+                    stepElement?.classList.add('text-green-400');
+                    spinner?.classList.add('hidden');
+                    check?.classList.remove('hidden');
+                } else {
+                    stepElement?.classList.remove('text-blue-400', 'text-green-400');
+                    stepElement?.classList.add('text-gray-400');
+                    spinner?.classList.add('hidden');
+                    check?.classList.add('hidden');
+                }
+            });
         }
 
         function hideProcessingStatus() {
-            document.getElementById('processing-status').classList.add('hidden');
+            // Complete all steps
+            updateProgress(100, 'complete');
+            setTimeout(() => {
+                document.getElementById('step-complete')?.classList.remove('text-blue-400');
+                document.getElementById('step-complete')?.classList.add('text-green-400');
+                document.getElementById('step-complete')?.querySelector('.step-spinner')?.classList.add('hidden');
+                document.getElementById('step-complete')?.querySelector('.step-check')?.classList.remove('hidden');
+            }, 300);
+            
+            setTimeout(() => {
+                document.getElementById('processing-status').classList.add('hidden');
+                // Reset for next time
+                updateProgress(0, '');
+            }, 2000);
         }
 
         function showUploadModal() {

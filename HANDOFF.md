@@ -1,9 +1,9 @@
-# Multilingual Incident Room - Handoff Document
+# Multilingual Incident Room - AI-Powered Emergency Response
 
-**Date:** November 15, 2025  
+**Date:** November 16, 2025  
 **Repository:** multilingual-incident-room  
-**Framework:** Laravel 12 + Tailwind CSS 4  
-**Purpose:** Multilingual emergency incident processing and SITREP (Situation Report) generation
+**Framework:** Laravel 12 + Tailwind CSS 4 + OpenAI GPT-4 Vision & Whisper  
+**Purpose:** AI-powered multimodal incident analysis with multilingual SITREP generation
 
 ---
 
@@ -43,9 +43,10 @@ npm install
 cp .env.example .env
 php artisan key:generate
 
-# 5. Add your Lingo API key to .env file
+# 5. Add API keys to .env file
 # Open .env in your editor and add:
 # LINGO_API_KEY=your-lingo-api-key-here
+# OPENAI_API_KEY=sk-your-openai-api-key-here
 
 # 6. Set up database (SQLite - no config needed)
 touch database/database.sqlite

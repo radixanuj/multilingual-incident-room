@@ -1,59 +1,130 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🚨 AI-Powered Multilingual Incident Room
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+> Advanced emergency response system using OpenAI GPT-4 Vision & Whisper for multimodal incident analysis
 
-## About Laravel
+![Laravel 12](https://img.shields.io/badge/Laravel-12-FF2D20?logo=laravel)
+![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4-412991?logo=openai)
+![Lingo](https://img.shields.io/badge/Lingo-Translation-4285F4)
+![Tailwind](https://img.shields.io/badge/Tailwind-4-06B6D4?logo=tailwindcss)
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 🎯 Overview
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+An intelligent incident reporting system that analyzes **text, images, and videos** using AI, extracts structured information, and generates multilingual situation reports (SITREPs) for law enforcement and emergency response teams.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### Key Features
 
-## Learning Laravel
+✅ **Multimodal AI Analysis** - GPT-4 Vision analyzes images & video frames, Whisper transcribes audio  
+✅ **Video Intelligence** - Extracts audio transcripts + visual content from videos  
+✅ **Image Analysis** - Identifies people, objects, damage, locations from photos  
+✅ **Structured Reports** - AI generates law enforcement-grade incident reports  
+✅ **Multilingual** - English + Hindi support via Lingo translation API  
+✅ **Interactive Dashboard** - Live SITREP display with map integration
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+## 🏗️ Architecture
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+\`\`\`
+User Upload (Text + Images + Videos)
+    ↓
+Lingo SDK: Normalize & translate text to English
+    ↓
+OpenAI Analysis:
+    ├─ Text: GPT-4 extracts structured information
+    ├─ Images: GPT-4 Vision analyzes each image
+    └─ Videos:
+        ├─ FFmpeg extracts audio → Whisper transcribes
+        └─ FFmpeg extracts frames → GPT-4 Vision analyzes
+    ↓
+AI generates structured incident report
+    ↓
+Lingo SDK: Translate report to Hindi
+    ↓
+Save multilingual SITREP + Display on dashboard
+\`\`\`
 
-## Laravel Sponsors
+## 🚀 Quick Start
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+### Prerequisites
 
-### Premium Partners
+- PHP 8.2+
+- Composer  
+- Node.js 20+
+- FFmpeg (for video processing)
+- OpenAI API key
+- Lingo API key
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+### Installation
 
-## Contributing
+\`\`\`bash
+# Clone repository
+git clone https://github.com/radixanuj/multilingual-incident-room.git
+cd multilingual-incident-room
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+# Install dependencies
+composer install
+npm install
 
-## Code of Conduct
+# Environment setup
+cp .env.example .env
+php artisan key:generate
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+# Add API keys to .env:
+# OPENAI_API_KEY=sk-your-key-here
+# LINGO_API_KEY=your-lingo-key
 
-## Security Vulnerabilities
+# Database setup (SQLite)
+touch database/database.sqlite
+php artisan migrate
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+# Build frontend
+npm run build
 
-## License
+# Start server
+php artisan serve
+\`\`\`
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Visit: **http://localhost:8000/dashboard**
+
+## 🤖 AI Capabilities
+
+### Image Analysis
+- High-detail GPT-4 Vision analysis
+- Identifies: people, objects, damage, vehicles, text, time indicators
+
+### Video Analysis
+1. **Audio**: FFmpeg extracts → Whisper transcribes speech
+2. **Visual**: Extracts 3 key frames → GPT-4 Vision analyzes each
+3. **Combined**: Audio transcript + visual observations
+
+### Structured Output
+- Summary & detailed description
+- People involved (victims, suspects, witnesses)  
+- Actions taken (emergency, police, medical)
+- Severity assessment & recommendations
+
+## 🌍 Multilingual Support
+
+- **Primary**: English (AI analysis)
+- **Translation**: Hindi (via Lingo SDK)
+- Easily extendable to 100+ languages
+
+## 🛠️ Technology Stack
+
+- **Backend**: Laravel 12, PHP 8.2
+- **AI**: OpenAI GPT-4 Turbo + Whisper
+- **Translation**: Lingo SDK  
+- **Frontend**: Tailwind CSS 4, Alpine.js
+- **Maps**: Leaflet.js + OpenStreetMap
+- **Video**: FFmpeg
+
+## 📝 Documentation
+
+- [OpenAI Setup Guide](OPENAI_SETUP.md)
+- [Handoff Document](HANDOFF.md)
+
+## 📞 Support
+
+For detailed setup and troubleshooting, see [OPENAI_SETUP.md](OPENAI_SETUP.md)
+
+---
+
+**Made with ❤️ using Laravel + OpenAI + Lingo**
