@@ -1,61 +1,47 @@
-# 🚨 AI-Powered Multilingual Incident Room
+# 🚨 Multilingual Incident Room
 
-> Advanced emergency response system using OpenAI GPT-4 Vision & Whisper for multimodal incident analysis
+> AI-powered emergency response platform using OpenAI GPT-4 Vision, Whisper & Lingo SDK
 
-![Laravel 12](https://img.shields.io/badge/Laravel-12-FF2D20?logo=laravel)
-![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4-412991?logo=openai)
-![Lingo](https://img.shields.io/badge/Lingo-Translation-4285F4)
-![Tailwind](https://img.shields.io/badge/Tailwind-4-06B6D4?logo=tailwindcss)
+[![Laravel](https://img.shields.io/badge/Laravel-12-FF2D20?logo=laravel)](https://laravel.com)
+[![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4-412991?logo=openai)](https://openai.com)
+[![Lingo](https://img.shields.io/badge/Lingo-SDK-4285F4)](https://lingo.dev)
+[![Tailwind](https://img.shields.io/badge/Tailwind-4-06B6D4?logo=tailwindcss)](https://tailwindcss.com)
 
-## 🎯 Overview
+## 📖 About
 
-An intelligent incident reporting system that analyzes **text, images, and videos** using AI, extracts structured information, and generates multilingual situation reports (SITREPs) for law enforcement and emergency response teams.
+An intelligent incident reporting system that accepts **text, images, and videos**, analyzes them using AI, and generates multilingual situation reports (SITREPs) for emergency response teams.
 
-### Key Features
-
-✅ **Multimodal AI Analysis** - GPT-4 Vision analyzes images & video frames, Whisper transcribes audio  
-✅ **Video Intelligence** - Extracts audio transcripts + visual content from videos  
-✅ **Image Analysis** - Identifies people, objects, damage, locations from photos  
-✅ **Structured Reports** - AI generates law enforcement-grade incident reports  
-✅ **Multilingual** - English + Hindi support via Lingo translation API  
-✅ **Interactive Dashboard** - Live SITREP display with map integration
+**Key Capabilities:**
+- 🎥 **Multimodal Analysis** - Process text, images & videos simultaneously
+- 🤖 **AI-Powered** - GPT-4 Vision for images, Whisper for audio transcription
+- 🌍 **Multilingual** - Bidirectional English ↔ Hindi translation via Lingo SDK
+- 📊 **Structured Output** - Law enforcement-grade incident reports
+- 🗺️ **Geolocation** - Interactive map with incident pinpointing
 
 ## 🏗️ Architecture
 
-\`\`\`
-User Upload (Text + Images + Videos)
-    ↓
-Lingo SDK: Normalize & translate text to English
-    ↓
-OpenAI Analysis:
-    ├─ Text: GPT-4 extracts structured information
-    ├─ Images: GPT-4 Vision analyzes each image
-    └─ Videos:
-        ├─ FFmpeg extracts audio → Whisper transcribes
-        └─ FFmpeg extracts frames → GPT-4 Vision analyzes
-    ↓
-AI generates structured incident report
-    ↓
-Lingo SDK: Translate report to Hindi
-    ↓
-Save multilingual SITREP + Display on dashboard
-\`\`\`
+```
+User Upload → Lingo Normalize → OpenAI Analyze → Lingo Translate → SITREP Output
+  (Text +       (Detect lang      (GPT-4 Vision   (English to      (Bilingual
+   Images +      & translate       + Whisper       Hindi)           EN + HI)
+   Videos)       to English)       + FFmpeg)
+```
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
 - PHP 8.2+
-- Composer  
+- Composer
 - Node.js 20+
-- FFmpeg (for video processing)
+- FFmpeg
 - OpenAI API key
 - Lingo API key
 
 ### Installation
 
-\`\`\`bash
-# Clone repository
+```bash
+# Clone & navigate
 git clone https://github.com/radixanuj/multilingual-incident-room.git
 cd multilingual-incident-room
 
@@ -63,15 +49,15 @@ cd multilingual-incident-room
 composer install
 npm install
 
-# Environment setup
+# Setup environment
 cp .env.example .env
 php artisan key:generate
 
-# Add API keys to .env:
-# OPENAI_API_KEY=sk-your-key-here
-# LINGO_API_KEY=your-lingo-key
+# Configure API keys in .env
+OPENAI_API_KEY=sk-your-openai-key-here
+LINGO_API_KEY=your-lingo-key-here
 
-# Database setup (SQLite)
+# Setup database
 touch database/database.sqlite
 php artisan migrate
 
@@ -80,42 +66,47 @@ npm run build
 
 # Start server
 php artisan serve
-\`\`\`
+```
 
-Visit: **http://localhost:8000/dashboard**
+**Access:** [http://localhost:8000/dashboard](http://localhost:8000/dashboard)
 
-## 🤖 AI Capabilities
+## 🎯 Features
 
-### Image Analysis
-- High-detail GPT-4 Vision analysis
-- Identifies: people, objects, damage, vehicles, text, time indicators
+### 🖼️ Image Analysis
+GPT-4 Vision identifies people, objects, damage, vehicles, and text from photos
 
-### Video Analysis
-1. **Audio**: FFmpeg extracts → Whisper transcribes speech
-2. **Visual**: Extracts 3 key frames → GPT-4 Vision analyzes each
-3. **Combined**: Audio transcript + visual observations
+### 🎬 Video Intelligence
+- FFmpeg extracts audio → Whisper transcribes speech
+- FFmpeg extracts 3 key frames → GPT-4 Vision analyzes visuals
+- Combined audio + visual analysis
 
-### Structured Output
+### 📝 Structured Reports (JSON)
 - Summary & detailed description
-- People involved (victims, suspects, witnesses)  
-- Actions taken (emergency, police, medical)
+- People involved (victims, suspects, witnesses)
+- Actions taken (emergency response, police, medical)
 - Severity assessment & recommendations
 
-## 🌍 Multilingual Support
+### 🌍 Multilingual (Lingo SDK)
+- **Input:** Auto-detect Hindi/Bengali/English → translate to English
+- **Output:** Translate structured reports to Hindi
+- Batch processing: 2-second latency
 
-- **Primary**: English (AI analysis)
-- **Translation**: Hindi (via Lingo SDK)
-- Easily extendable to 100+ languages
+## 🛠️ Tech Stack
 
-## 🛠️ Technology Stack
+| Category | Technology |
+|----------|-----------|
+| **Backend** | Laravel 12, PHP 8.2 |
+| **AI** | OpenAI GPT-4 Turbo, Whisper |
+| **Translation** | Lingo SDK |
+| **Frontend** | Tailwind CSS 4, Alpine.js |
+| **Database** | SQLite |
+| **Maps** | Leaflet.js + OpenStreetMap |
+| **Video** | FFmpeg |
 
-- **Backend**: Laravel 12, PHP 8.2
-- **AI**: OpenAI GPT-4 Turbo + Whisper
-- **Translation**: Lingo SDK  
-- **Frontend**: Tailwind CSS 4, Alpine.js
-- **Maps**: Leaflet.js + OpenStreetMap
-- **Video**: FFmpeg
+## 📄 License
+
+MIT License
 
 ---
 
-**Made with ❤️ using Laravel + OpenAI + Lingo**
+**Built with ❤️ for Lingo Hackathon** | Laravel + OpenAI + Lingo SDK
