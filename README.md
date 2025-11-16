@@ -116,15 +116,6 @@ Visit: **http://localhost:8000/dashboard**
 - **Maps**: Leaflet.js + OpenStreetMap
 - **Video**: FFmpeg
 
-## 📝 Documentation
-
-- [OpenAI Setup Guide](OPENAI_SETUP.md)
-- [Handoff Document](HANDOFF.md)
-
-## 📞 Support
-
-For detailed setup and troubleshooting, see [OPENAI_SETUP.md](OPENAI_SETUP.md)
-
 ---
 
 **Made with ❤️ using Laravel + OpenAI + Lingo**
