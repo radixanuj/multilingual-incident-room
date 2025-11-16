@@ -1,3 +1,5 @@
+Before we start a note -> we have added snapshots in our README as our video quality was poor!
+
 # 🚨 Multilingual Incident Room
 
 > AI-powered emergency response platform using OpenAI GPT-4 Vision, Whisper & Lingo SDK
@@ -103,10 +105,16 @@ GPT-4 Vision identifies people, objects, damage, vehicles, and text from photos
 | **Maps** | Leaflet.js + OpenStreetMap |
 | **Video** | FFmpeg |
 
-## 📄 License
 
-MIT License
+## Snapshots
 
+![alt text](assets/image.png)
+
+![alt text](assets/image-1.png)
+
+![alt text](assets/image-2.png)
+
+![alt text](assets/image_hn.png)
 ---
 
 **Built with ❤️ for Lingo Hackathon** | Laravel + OpenAI + Lingo SDK
