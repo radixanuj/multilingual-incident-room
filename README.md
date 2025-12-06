@@ -1,8 +1,7 @@
-Before we start a note -> we have added snapshots in our README as our video quality was poor!
-
 # 🚨 Multilingual Incident Room
 
-> AI-powered emergency response platform using OpenAI GPT-4 Vision, Whisper & Lingo SDK
+This project was a Multilingual Hackathon submission powered by Lingo.
+AI-powered emergency response platform using OpenAI GPT-4 Vision, Whisper & Lingo SDK
 
 [![Laravel](https://img.shields.io/badge/Laravel-12-FF2D20?logo=laravel)](https://laravel.com)
 [![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4-412991?logo=openai)](https://openai.com)
@@ -117,4 +116,4 @@ GPT-4 Vision identifies people, objects, damage, vehicles, and text from photos
 ![alt text](assets/image_hn.png)
 ---
 
-**Built with ❤️ for Lingo Hackathon** | Laravel + OpenAI + Lingo SDK
+**Built with ❤️** using Laravel + OpenAI + Lingo SDK
